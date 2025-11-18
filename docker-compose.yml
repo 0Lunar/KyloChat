@@ -1,0 +1,40 @@
+services:
+  freaky_chat:
+    container_name: FreakyChat_Server
+    build: .
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      CHAT_DB_HOST: db
+      CHAT_DB_USER: root
+      CHAT_DB_PASSWD: root
+      CHAT_DB_NAME: chat_db
+    ports:
+      - "53900:5000"
+    deploy:
+      resources:
+        limits:
+          cpus: "3.0"
+          memory: 2G
+        reservations:
+          cpus: "1.5"
+          memory: 1G
+  
+  db:
+    container_name: FreakyChat_Database
+    image: mariadb:11.4
+    environment:
+      MARIADB_ROOT_PASSWORD: root
+      MARIADB_DATABASE: chat_db
+    volumes:
+      - "./server/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
+      - "./db_data:/var/lib/mysql:rw"
+    deploy:
+      resources:
+        limits:
+          cpus: "2.0"
+          memory: 1G
+        reservations:
+          cpus: "1.0"
+          memory: 512M
