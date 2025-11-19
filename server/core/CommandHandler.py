@@ -147,4 +147,14 @@ b'''
         if not username or not password or (admin and not email):
             return False
         
+        if type(admin) is not bool:
+            if type(admin) is str:
+                admin = True if admin == "True" else False
+            
+            elif type(admin) is int:
+                admin = bool(admin)
+            
+            else:
+                admin = False
+        
         return self._db.makeUser(username, password, email, admin, True)
