@@ -543,6 +543,7 @@ if __name__ == "__main__":
                 print(resp.decode(encoding='utf-8', errors='ignore'))
             
         except KeyboardInterrupt:
+            conn.send_int_bytes(token.encode() + b'/exit')
             break
         except Exception as ex:
             conn.send_int_bytes(token.encode() + b'/exit')

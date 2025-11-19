@@ -10,6 +10,7 @@ class Login(object):
         self.conn = connection
         self.db = DBHandler()
         self.logger = Logger()
+        self.logged_user = ''
     
 
     def login(self) -> bool:
@@ -54,6 +55,7 @@ class Login(object):
             self.logger.info(f"Token for {self.conn.addr}: {token[:14] + "*" * 22}")
             self.conn.send_short_bytes(token.encode())
             
+            self.logged_user = username
             return True
         
         self.logger.warning(f"Invalid password for {self.conn.addr}; login failed for {username}")

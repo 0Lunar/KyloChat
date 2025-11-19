@@ -1,6 +1,7 @@
 from core import SocketHandler, Login, ConnHandler, DBHandler, CommandHandler, Logger
 import threading
 import socket
+from colorama import Fore
 
 
 IP = "0.0.0.0"
@@ -26,6 +27,11 @@ def HandleConn(conn: SocketHandler) -> None:
             if data == b"/exit":
                 logger.info(f"Connection closed from {conn.addr}")
                 conn.close()
+                hConn.remove(conn.addr[0])
+                
+                if hDb.existToken(token):
+                    for cn in hConn.get_all_conns():
+                        cn.send_int_bytes(Fore.YELLOW.encode() + b'[SERVER] ' + Fore.RED.encode() + hDb.TokenToUsername(token).encode() + b' disconnected')
                 break
             
             if not hDb.existToken(token):
@@ -91,6 +97,9 @@ def HandleHandshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         else:
             conn.close()
             return
+
+        for cn in hConn.get_all_conns():
+            cn.send_int_bytes(Fore.YELLOW.encode() + b'[SERVER] ' + Fore.GREEN.encode() + log.logged_user.encode() + b' logged in')
 
         hConn.add(conn, addr)
         HandleConn(conn)
