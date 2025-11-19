@@ -64,7 +64,7 @@ def HandleConn(conn: SocketHandler) -> None:
                 
                 for cn in hConn.get_all_conns():
                     if conn is not cn:
-                        cn.send_int_bytes(hDb.TokenToUsername(token).encode() + data)
+                        cn.send_int_bytes(b'[' + hDb.TokenToUsername(token).encode() + b'] ' + data)
 
         except Exception as ex:
             logger.error(f"Exception in connection handling for {conn.addr} : {ex}")
