@@ -439,3 +439,62 @@ class DBHandler(object):
         cursor.close()
         
         return True
+    
+    
+    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False, silent: bool = False) -> bool:
+        """
+        Create a user on the database
+        
+        Args:
+            username : username for login
+            password : user password
+            email : email for the account (optional for non admin)
+            admin : `True` if the user is admin, otherwise `False`
+            
+        Returns:
+            out : `True` on success, `False` on failure
+        """
+        
+        if not username:
+            if silent:
+                return False
+            raise RuntimeError("Missing username")
+        
+        if not password:
+            if silent:
+                return False
+            raise RuntimeError("Missing password")
+        
+        if admin and not email:
+            if silent:
+                return False
+            raise RuntimeError("Admin need an email")
+        
+        if self.checkUser(username):
+            if silent:
+                return False
+            raise RuntimeError("User already exists")
+        
+        email = email or 'None'
+        hashed_password = self.crypto.Bcrypt_Hash(
+            password.encode(),
+            self.crypto.Generate_Bcrypt_Salt()
+        )
+        
+        cursor = self.db.cursor()
+        
+        cursor.execute(
+            "INSERT INTO users(username, email, admin) VALUES (%s, %s, %s)",
+            (username, email, admin, )
+        )
+        
+        user_id = self.userID(username)
+        
+        cursor.execute(
+            "INSERT INTO credentials(user, password) VALUES (%s, %s)",
+            (user_id, hashed_password, )
+        )
+        
+        cursor.close()
+        
+        return True
