@@ -185,7 +185,7 @@ class SocketHandler(socket.socket):
         super().send(payload)
         
     
-    def send_short_bytes(self, msg: bytes) -> None:
+    def _sendNbytes(self, msg: bytes, n: int) -> None:
         if not self.connected:
             raise RuntimeError("Not connected")
         
@@ -195,137 +195,34 @@ class SocketHandler(socket.socket):
         if not msg:
             raise RuntimeError("Invalid Message")
         
-        if len(msg) > 0xFFFF:
-            raise RuntimeError("PAyload too big")
+        if len(msg) > ((1 << (8 * n)) - 1) - 0x30:
+            raise RuntimeError("Payload too big")
         
         iv = self.crypto.Generate_iv()
         
         self.crypto.AES_Update_Iv(iv)
         data = self.crypto.AES_Encrypt(msg)
         
+        if data is None:
+            raise RuntimeError("Data encryption error (AES)")
+        
         sig = self.crypto.Sign_HMAC(data)
         
         payload = iv + data + sig
-        payload_len = len(payload).to_bytes(2, 'little')
+        payload_len = len(payload).to_bytes(n, 'little')
         
         super().send(payload_len)
         super().send(payload)
         
         
-    def send_int_bytes(self, msg: bytes) -> None:
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        if not self.hs:
-            raise RuntimeError("Missing handshake")
-        
-        if not msg:
-            raise RuntimeError("Invalid Message")
-        
-        if len(msg) > 0xFFFFFFFF:
-            raise RuntimeError("PAyload too big")
-        
-        iv = self.crypto.Generate_iv()
-        
-        self.crypto.AES_Update_Iv(iv)
-        data = self.crypto.AES_Encrypt(msg)
-        
-        sig = self.crypto.Sign_HMAC(data)
-        
-        payload = iv + data + sig
-        payload_len = len(payload).to_bytes(4, 'little')
-        
-        super().send(payload_len)
-        super().send(payload)
-
-
-    def success_code(self) -> None:
-        """
-        Send the success code (not encrypted) b'\x00'
-        """
-        
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        if super().send(b'\x00') <= 0:
-            raise RuntimeError("Connection error")
-    
-
-    def fail_code(self) -> None:
-        """
-        Send the fail code (not encrypted) b'\x01'
-        """
-        
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        if super().send(b'\x01') <= 0:
-            raise RuntimeError("Connection error")
-    
-
-    def recv_byte(self) -> bytes:
-        """
-        Receive a single byte (not encrypted)
-        """
-        
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        return super().recv(1)
-    
-    
-    def recv_char_bytes(self) -> bytes:
-        """
-        Receives a payload of maximum length 255 bytes
-        """
-        
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        if not self.hs:
-            raise RuntimeError("Missing handshake")
-        
-        payload_len = super().recv(1)
-        
-        if not payload_len:
-            raise RuntimeError("Conneciton Error")
-        
-        payload_len = int.from_bytes(payload_len, 'little')
-
-        data = super().recv(payload_len)
-        
-        while len(data) < payload_len:
-            chunk = super().recv(payload_len - len(data))
-            
-            if not chunk:
-                raise RuntimeError("Connection Error")
-            
-            data += chunk
-        
-        iv, data, sig = data[:16], data[16:-32], data[-32:]
-        
-        if not self.crypto.check_HMAC(data, sig):
-            raise RuntimeError("Invalid HMAC")
-        
-        self.crypto.AES_Update_Iv(iv)
-        if not (data := self.crypto.AES_Decrypt(data)):
-            raise RuntimeError("Error decrypting msg with AES")
-        
-        return data
-
-
-    def recv_short_bytes(self) -> bytes:
-        """
-        Receives a payload of maximum length 65_535 bytes
-        """
-        
+    def _recvNbytes(self, n: int) -> bytes:
         if not self.connected:
             raise RuntimeError("Not connected")
         
         payload_len = b''
         
-        while len(payload_len) < 2:
-            chunk = super().recv(2 - len(payload_len))
+        while len(payload_len) < n:
+            chunk = super().recv(n - len(payload_len))
             
             if not chunk:
                 raise RuntimeError("Connection Error")
@@ -354,6 +251,54 @@ class SocketHandler(socket.socket):
             raise RuntimeError("Error decrypting msg with AES")
         
         return data
+        
+        
+    def send_char_bytes(self, msg: bytes) -> None:
+        """
+        Sends a payload of maximum length 255 bytes
+        """
+        
+        self._sendNbytes(msg, 1)
+        
+    
+    def send_short_bytes(self, msg: bytes) -> None:
+        """
+        Sends a payload of maximum length 65_535 bytes
+        """
+        
+        self._sendNbytes(msg, 2)
+        
+        
+    def send_int_bytes(self, msg: bytes) -> None:
+        """
+        Sends a payload of maximum length 4_294_967_296 bytes
+        """
+        
+        self._sendNbytes(msg, 4)
+        
+        
+    def send_long_bytes(self, msg: bytes) -> None:
+        """
+        Sends a payload of maximum length 18_446_744_073_709_551_616 bytes
+        """
+        
+        self._sendNbytes(msg, 8)
+    
+    
+    def recv_char_bytes(self) -> bytes:
+        """
+        Receives a payload of maximum length 255 bytes
+        """
+        
+        return self._recvNbytes(1)
+
+
+    def recv_short_bytes(self) -> bytes:
+        """
+        Receives a payload of maximum length 65_535 bytes
+        """
+        
+        return self._recvNbytes(2)
     
 
     def recv_int_bytes(self) -> bytes:
@@ -361,41 +306,7 @@ class SocketHandler(socket.socket):
         Receives a payload of maximum length 4_294_967_296 bytes
         """
         
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        payload_len = b''
-        
-        while len(payload_len) < 4:
-            chunk = super().recv(4 - len(payload_len))
-            
-            if not chunk:
-                raise RuntimeError("Connection Error")
-            
-            payload_len += chunk
-        
-        payload_len = int.from_bytes(payload_len, 'little')
-
-        data = super().recv(payload_len)
-        
-        while len(data) < payload_len:
-            chunk = super().recv(payload_len - len(data))
-            
-            if not chunk:
-                raise RuntimeError("Connection Error")
-            
-            data += chunk
-        
-        iv, data, sig = data[:16], data[16:-32], data[-32:]
-        
-        if not self.crypto.check_HMAC(data, sig):
-            raise RuntimeError("Invalid HMAC")
-        
-        self.crypto.AES_Update_Iv(iv)
-        if not (data := self.crypto.AES_Decrypt(data)):
-            raise RuntimeError("Error decrypting msg with AES")
-        
-        return data
+        return self._recvNbytes(4)
     
 
     def recv_long_bytes(self) -> bytes:
@@ -403,41 +314,7 @@ class SocketHandler(socket.socket):
         Receives a payload of maximum length 18_446_744_073_709_551_616 bytes
         """
         
-        if not self.connected:
-            raise RuntimeError("Not connected")
-        
-        payload_len = b''
-        
-        while len(payload_len) < 8:
-            chunk = super().recv(8 - len(payload_len))
-            
-            if not chunk:
-                raise RuntimeError("Connection Error")
-            
-            payload_len += chunk
-        
-        payload_len = int.from_bytes(payload_len, 'little')
-
-        data = super().recv(payload_len)
-        
-        while len(data) < payload_len:
-            chunk = super().recv(payload_len - len(data))
-            
-            if not chunk:
-                raise RuntimeError("Connection Error")
-            
-            data += chunk
-        
-        iv, data, sig = data[:16], data[16:-32], data[-32:]
-        
-        if not self.crypto.check_HMAC(data, sig):
-            raise RuntimeError("Invalid HMAC")
-        
-        self.crypto.AES_Update_Iv(iv)
-        if not (data := self.crypto.AES_Decrypt(data)):
-            raise RuntimeError("Error decrypting msg with AES")
-        
-        return data
+        return self._recvNbytes(8)
 
 
     def unsafe_send(self, msg: bytes) -> int:
@@ -466,3 +343,27 @@ class SocketHandler(socket.socket):
         """
         
         return super().recv(bufsize)
+    
+    
+    def success_code(self) -> None:
+        """
+        Send the success code (not encrypted) b'\x00'
+        """
+        
+        if not self.connected:
+            raise RuntimeError("Not connected")
+        
+        if super().send(b'\x00') <= 0:
+            raise RuntimeError("Connection error")
+    
+
+    def fail_code(self) -> None:
+        """
+        Send the fail code (not encrypted) b'\x01'
+        """
+        
+        if not self.connected:
+            raise RuntimeError("Not connected")
+        
+        if super().send(b'\x01') <= 0:
+            raise RuntimeError("Connection error")
