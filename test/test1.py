@@ -10,6 +10,7 @@ from secrets import token_bytes
 import socket
 import sys
 import getpass
+import warnings
 
 
 class CryptoHandler(object):
@@ -487,6 +488,8 @@ class SocketHandler(socket.socket):
     
 
 if __name__ == "__main__":
+    warnings.warn('Deprecated script', DeprecationWarning)
+    
     conn = SocketHandler(socket.AF_INET, socket.SOCK_STREAM)
     conn.connect(("127.0.0.1", 5000))
     

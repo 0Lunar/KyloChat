@@ -498,3 +498,29 @@ class DBHandler(object):
         cursor.close()
         
         return True
+    
+    
+    def removeToken(self, token: str) -> bool:
+        """
+        Remove a token from the database
+        
+        Args:
+            token : The token to remove
+        
+        Returns:
+            out : `True` on success, `False` on failure
+        """
+        
+        if not token or len(token) != 36:
+            return False
+        
+        cursor = self.db.cursor()
+        
+        cursor.execute(
+            "DELETE FROM tokens WHERE tokens.token=%s",
+            (token, )
+        )
+        
+        cursor.close()
+        
+        return True

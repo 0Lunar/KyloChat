@@ -10,8 +10,10 @@ COPY ./server/scripts/wait-for-it.sh /wait-for-it.sh
 RUN chmod +x /wait-for-it.sh && \
     pip install --no-cache-dir -r /app/requirements.txt && \
     useradd -M chat_usr && \
+    mkdir -p /app/logs && \
+    touch /app/logs/chatserver.log && \
     chown -R root:chat_usr /app && \
-    chmod -R 750 /app
+    chmod -R 770 /app
 
 USER chat_usr
 

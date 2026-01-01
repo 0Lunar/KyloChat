@@ -3,5 +3,7 @@ from .CryptoHandler import CryptoHandler
 from .Login import Login
 from .dbHandler import DBHandler
 from .ConnectionsHandler import ConnHandler
+from .ConnectionsHandler import ClientInfo
 from .CommandHandler import CommandHandler
 from .Logger import Logger
+from .MessageTypes import MessageTypes

@@ -13,7 +13,7 @@ class Login(object):
         self.logged_user = ''
     
 
-    def login(self) -> bool:
+    def get_login(self) -> bool | str:
         # Get Credentials
         # Username
 
@@ -56,7 +56,7 @@ class Login(object):
             self.conn.send_short_bytes(token.encode())
             
             self.logged_user = username
-            return True
+            return token
         
         self.logger.warning(f"Invalid password for {self.conn.addr}; login failed for {username}")
         self.conn.fail_code()

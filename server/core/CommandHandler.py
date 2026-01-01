@@ -41,20 +41,21 @@ b'''
         if not msg:
             return False
         
-        msg = msg.split(" ")[0]
-        
-        return msg.startswith("/") and msg[1:] in self.commands.keys()
+        if not msg.startswith("/"):
+            return False
+                
+        return msg.split(" ")[0][1:] in self.commands.keys()
     
     
-    def parseCommand(self, command: str):
+    def parseCommand(self, command: str) -> bytes:
         if not self.isCommand(command):
-            return
+            return b''
 
         cmd = command.split(" ")
         command, args = cmd[0][1:], cmd[1:]
         
         if len(args) != self.commands[command][0]:
-            return
+            return self.helpCommand()
         
         out = self.commands[command][1](*args)
         
@@ -62,7 +63,7 @@ b'''
             try:
                 return str(out).encode()
             except Exception as ex:
-                return "Error"
+                return b"Error"
         
         return out
     

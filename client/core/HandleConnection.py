@@ -15,18 +15,6 @@ class SocketHandler(socket.socket):
             self.connected = False
     
 
-    def listen(self) -> tuple["SocketHandler", tuple[str, int]]:
-        if self.connected:
-            raise RuntimeError("Socket already connected")
-
-        super().listen()
-        conn, remote = super().accept()
-        conn = SocketHandler(socket.AF_INET, socket.SOCK_STREAM, 0, conn.detach())
-        conn.addr = remote
-
-        return (conn, remote )
-    
-
     def connect(self, address) -> None:
         if self.connected:
             raise RuntimeError("Already connected")
@@ -45,71 +33,34 @@ class SocketHandler(socket.socket):
         Sign:       HMAC-SHA256
         """
         
-        if not self.connected:
-            raise RuntimeError("Connection closed")
-
         conn = super()
         _timeout = conn.timeout
         key_size = 2048
 
         try:
             # Public Key RSA
-            self.crypto.New_RSA(key_size=key_size)
-
-            pub = self.crypto.RSA_export_pub_key()
-
-            if pub is None:
-                raise RuntimeError("Error exporting RSA public key")
-
-            pub_len = len(pub).to_bytes(length=2, byteorder='little')
-            payload = pub_len + pub
-
-            conn.settimeout(10)
-
-            conn.send(payload)
-
-            # Get Encrypted AES Key
-            enc = conn.recv(key_size // 8)      #   2048 bit -> 256 bytes
-
-            while len(enc) < (key_size // 8):
-                chunk = conn.recv((key_size // 8) - len(enc))
-                if not chunk:
-                    raise RuntimeError("Failed to receive complete AES key")
-                enc += chunk
-
-            aes_key = self.crypto.RSA_decrypt(enc)
-
-            if aes_key is None or len(aes_key) not in (16, 24, 32):
-                raise ValueError("Invalid AES key")
-
-            self.crypto.New_AES(key=aes_key)
-
-            # Get HMAC
-            enc = conn.recv(64)
-
-            while len(enc) < 64:
-                chunk = conn.recv(64 - len(enc))
-                if not chunk:
-                    raise RuntimeError("Failed to receive complete HMAC key")
-                enc += chunk
-
-            if len(enc) != 64:
-                raise ValueError(f"Invalid HMAC key length: {len(enc)} != 64")
-
-            iv, encrypted_hmac_key = enc[:16], enc[16:]
-
-            self.crypto.AES_Update_Iv(iv)
-            hmac_key = self.crypto.AES_Decrypt(encrypted_hmac_key)
-
-            if hmac_key is None or len(hmac_key) != 32:
-                raise ValueError("Invalid HMAC key decrypted")
-
-            self.crypto.New_HMAC(key=hmac_key)
-
+            size = int.from_bytes(conn.recv(2), 'little')
+            pub = conn.recv(size)
+                        
+            self.crypto.RSA_import_pub_key(pub)
+                        
+            aes_key = self.crypto.Generate_AES256_key()
+            aes_iv = self.crypto.Generate_iv()
+            hmac_key = self.crypto.Generate_HMAC_key()
+                                    
+            self.crypto.New_AES(aes_key, aes_iv)
+            self.crypto.New_HMAC(hmac_key)
+            
+            encrypted_aes_key = self.crypto.RSA_encrypt(aes_key) or b''
+            encrypted_hmac_key = self.crypto.AES_Encrypt(hmac_key) or b''
+                        
+            conn.send(encrypted_aes_key)
+            conn.send(aes_iv + encrypted_hmac_key)
+            
             self.hs = True
-            conn.settimeout(_timeout)
-
+            
         except Exception as ex:
+            print(f"Handshake server error: {ex}")
             conn.close()
             raise Exception(ex)
         
@@ -359,3 +310,23 @@ class SocketHandler(socket.socket):
         
         if super().send(b'\x01') <= 0:
             raise RuntimeError("Connection error")
+        
+        
+    def recv_code(self) -> bool:
+        """
+        Receive the status code
+        
+        Returns:
+            Status_Code : `True` on **Failure**; `False` on **Success**
+        """
+        
+        if not self.connected:
+            raise RuntimeError("Not connected")
+        
+        code = super().recv(1)
+        code = int.from_bytes(code)
+        
+        if code not in {0,1}:
+            raise ValueError("Invalid Status Code")
+        
+        return bool(code)
