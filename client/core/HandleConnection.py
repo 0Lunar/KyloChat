@@ -58,7 +58,7 @@ class SocketHandler(socket.socket):
             conn.send(aes_iv + encrypted_hmac_key)
             
             self.hs = True
-            
+                        
         except Exception as ex:
             print(f"Handshake server error: {ex}")
             conn.close()

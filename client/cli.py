@@ -1,65 +1,67 @@
-from rich.console import Console
-from rich.panel import Panel
-from rich.prompt import Prompt
+from textual.app import App, ComposeResult
+from textual.containers import Container, Vertical, Horizontal
+from textual.widgets import Header, Footer, Static, Input, RichLog
+from textual.binding import Binding
+from textual.screen import Screen
+from textual import events
 from rich.text import Text
-from rich.align import Align
 from datetime import datetime
-from core import SocketHandler
-from core import Login
-from core import MessageTypes
-import time
-import re
+from core import SocketHandler, Login, MessageTypes
 import threading
-import os
 import queue
+import re
 
 
-console = Console()
-
-
-class KyloChat:
-    def __init__(self):
-        self.messages = []
-        self.username = None
-        self.running = False
-        self.receive_thread = None
-        self.lock = threading.Lock()
-        self.needs_refresh = False
-        self.queue = queue.Queue()
-        
+class ConnectionScreen(Screen):
+    """Screen for server connection input"""
     
-    def show_login_screen(self) -> None:
-        console.clear()
-        
-        header = Text()
-        header.append("╔═══════════════════════════════════════╗\n", style="bold magenta")
-        header.append("║                                       ║\n", style="bold magenta")
-        header.append("║            ", style="bold magenta")
-        header.append("KYLOCHAT", style="bold cyan")
-        header.append("                   ║\n", style="bold magenta")
-        header.append("║                                       ║\n", style="bold magenta")
-        header.append("╚═══════════════════════════════════════╝", style="bold magenta")
-        
-        console.print(Align.center(header))
-        console.print()
-        
-        login_panel = Panel(
-            "[bold white]Please authenticate to continue[/bold white]\n\n"
-            "[dim]Enter your credentials below[/dim]",
-            title="🔐 Authentication Required",
-            border_style="magenta",
-            padding=(1, 2)
-        )
-        console.print(Align.center(login_panel))
-        console.print()
-        
+    CSS = """
+        ConnectionScreen {
+        align: center middle;
+    }
     
-    def validate_ip(self, ip) -> bool:
+    #connection_box {
+        width: 60;
+        height: 16;
+        border: thick $primary;
+        padding: 1 2;
+    }
+    
+    .input_label {
+        margin-top: 1;
+        color: $accent;
+    }
+    
+    Input {
+        margin-bottom: 1;
+    }
+    
+    #error_msg {
+        color: $error;
+        margin-top: 1;
+    }
+    """
+    
+    BINDINGS = [
+        Binding("escape", "app.quit", "Quit", show=True),
+    ]
+    
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="connection_box"):
+            yield Static("🌐 [bold magenta]KyloChat[/bold magenta] - Server Connection\n", id="title")
+            yield Static("Server IP:", classes="input_label")
+            yield Input(placeholder="127.0.0.1", value="127.0.0.1", id="ip_input")
+            yield Static("Port:", classes="input_label")
+            yield Input(placeholder="5000", value="5000", id="port_input")
+            yield Static("", id="error_msg")
+        yield Footer()
+    
+    def validate_ip(self, ip: str) -> bool:
         """Validate IP address format"""
         return bool(re.match(r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$', ip))
     
-    
-    def validate_port(self, port) -> bool:
+    def validate_port(self, port: str) -> bool:
         """Validate port number"""
         try:
             port_num = int(port)
@@ -67,346 +69,360 @@ class KyloChat:
         except ValueError:
             return False
     
-    
-    def get_server_connection(self) -> tuple[str, int]:
-        """Returns server IP and port from user input"""
-        while True:
-            console.clear()
-            
-            header = Text()
-            header.append("╔═══════════════════════════════════════╗\n", style="bold magenta")
-            header.append("║                                       ║\n", style="bold magenta")
-            header.append("║            ", style="bold magenta")
-            header.append("KYLOCHAT", style="bold cyan")
-            header.append("                   ║\n", style="bold magenta")
-            header.append("║                                       ║\n", style="bold magenta")
-            header.append("╚═══════════════════════════════════════╝", style="bold magenta")
-            
-            console.print(Align.center(header))
-            console.print()
-            
-            connection_panel = Panel(
-                "[bold white]Server Connection[/bold white]\n\n"
-                "[dim]Enter server details to connect[/dim]",
-                title="🌐 Connect to Server",
-                border_style="magenta",
-                padding=(1, 2)
-            )
-            console.print(Align.center(connection_panel))
-            console.print()
-            
-            ip = Prompt.ask("\n[bold cyan]Server IP[/bold cyan]", default="127.0.0.1")
-            
-            if not self.validate_ip(ip):
-                console.print("[bold red]✗ Invalid IP address![/bold red]")
-                console.print("[yellow]IP must be in format: 0-255.0-255.0-255.0-255[/yellow]")
-                time.sleep(1)
-                continue
-            
-            port = Prompt.ask("[bold cyan]Port[/bold cyan]", default="5000")
-            
-            if not self.validate_port(port):
-                console.print("[bold red]✗ Invalid port number![/bold red]")
-                console.print("[yellow]Port must be between 1 and 65535[/yellow]")
-                time.sleep(1)
-                continue
-            
-            return (ip, int(port))
-    
-    
-    def get_login_credentials(self) -> tuple[str, str]:
-        """Returns username and password from user input"""        
-        self.show_login_screen()
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle input submission"""
+        ip_input = self.query_one("#ip_input", Input)
+        port_input = self.query_one("#port_input", Input)
+        error_msg = self.query_one("#error_msg", Static)
         
-        username = Prompt.ask("\n[bold cyan]Username[/bold cyan]")
-        password = Prompt.ask("[bold cyan]Password[/bold cyan]", password=True)
+        ip = ip_input.value
+        port = port_input.value
         
-        return (username, password)
-    
-    
-    def show_login_success(self, username) -> None:
-        """Display success message after login"""
-        console.print("\n[bold green]✓ Authentication successful![/bold green]")
-        console.print(f"[dim]Welcome back, {username}![/dim]")
-        time.sleep(1)
-        self.username = username
-    
-    
-    def show_login_failed(self, error_message="Invalid credentials") -> None:
-        """Display error message after failed login"""
-        console.print(f"\n[bold red]✗ Authentication failed![/bold red]")
-        console.print(f"[yellow]{error_message}[/yellow]")
-        time.sleep(2)
-    
-    
-    def show_connecting(self) -> None:
-        """Display connecting to server message"""
-        console.print("\n[dim]Connecting to server...[/dim]")
-        console.print("\n[yellow]Press CTRL+C to abort[/yellow]")
-    
-    
-    def add_message(self, user, message, is_system=False) -> None:
-        timestamp = datetime.now().strftime("%H:%M:%S")
-        with self.lock:
-            self.messages.append({
-                'user': user,
-                'message': message,
-                'time': timestamp,
-                'is_system': is_system
-            })
-            self.needs_refresh = True
-    
-    
-    def render_chat(self) -> Panel:
-        with self.lock:
-            messages_to_render = self.messages[-15:]
+        # Validate
+        if not self.validate_ip(ip):
+            error_msg.update("❌ Invalid IP address format")
+            return
         
-        chat_content = ""
-        for msg in messages_to_render:
-            if msg['is_system']:
-                chat_content += f"[dim italic]*** {msg['message']} ***[/dim italic]\n"
-            else:
-                color = "cyan" if msg['user'] == self.username else "green"
-                chat_content += f"[{color}]{msg['user']}[/{color}] [{msg['time']}]: {msg['message']}\n"
+        if not self.validate_port(port):
+            error_msg.update("❌ Invalid port (1-65535)")
+            return
         
-        return Panel(
-            chat_content.strip() if chat_content else "[dim]No messages yet...[/dim]",
-            title="💬 KyloChat Room",
-            border_style="magenta",
-            padding=(1, 2)
-        )
+        # Switch to login screen
+        self.app.push_screen(LoginScreen(ip, int(port)))
+
+
+class LoginScreen(Screen):
+    """Screen for user authentication"""
     
+    CSS = """
+    LoginScreen {
+        align: center middle;
+    }
     
-    def show_chat_header(self) -> Panel:
-        header = Panel(
-            f"[bold magenta]KyloChat[/bold magenta] | "
-            f"[bold cyan]User: {self.username}[/bold cyan] | "
-            f"[dim]Type '/exit' to leave[/dim]",
-            border_style="magenta"
-        )
-        return header
+    #login_box {
+        width: 60;
+        height: 17;
+        border: thick $primary;
+        padding: 1 2;
+    }
     
+    .input_label {
+        margin-top: 1;
+        color: $accent;
+    }
     
-    def clear_screen(self) -> None:
-        """Clear screen in a cross-platform way"""
-        os.system('cls' if os.name == 'nt' else 'clear')
+    Input {
+        margin-bottom: 1;
+    }
     
+    #status_msg {
+        margin-top: 1;
+    }
+    """
     
-    def display_chat(self) -> None:
-        """Display the complete chat interface"""
-        self.clear_screen()
-        console.print(self.show_chat_header())
-        console.print(self.render_chat())
-        console.print()
+    BINDINGS = [
+        Binding("escape", "back", "Back", show=True),
+    ]
     
+    def __init__(self, ip: str, port: int):
+        super().__init__()
+        self.ip = ip
+        self.port = port
     
-    def get_user_message(self) -> str:
-        """Get message input from user"""
-        return Prompt.ask(f"[bold cyan]{self.username}[/bold cyan]")
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Container(id="login_box"):
+            yield Static("🔐 [bold magenta]KyloChat[/bold magenta] - Login\n", id="title")
+            yield Static(f"Server: {self.ip}:{self.port}", id="server_info")
+            yield Static("Username:", classes="input_label")
+            yield Input(placeholder="Enter username", id="username_input")
+            yield Static("Password:", classes="input_label")
+            yield Input(placeholder="Enter password", password=True, id="password_input")
+            yield Static("", id="status_msg")
+        yield Footer()
     
-    
-    def start_chat(self) -> None:
-        self.add_message("System", f"{self.username} joined the chat! 👋", is_system=True)
-        self.display_chat()
-    
-    
-    def handle_exit(self) -> None:
-        """Handle user exit"""
-        self.running = False
-        self.add_message("System", f"{self.username} left the chat. 👋", is_system=True)
-        self.clear_screen()
-        console.print(self.show_chat_header())
-        console.print(self.render_chat())
-        console.print("\n[bold green]Goodbye! See you soon![/bold green]\n")
-    
-    
-    def auto_refresh_thread(self) -> None:
-        """Thread to automatically refresh display when new messages arrive"""
-        last_message_count = 0
-                
-        while self.running:
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle login submission"""
+        username_input = self.query_one("#username_input", Input)
+        password_input = self.query_one("#password_input", Input)
+        status_msg = self.query_one("#status_msg", Static)
+        
+        username = username_input.value.strip()
+        password = password_input.value.strip()
+        
+        if not username or not password:
+            status_msg.update("[yellow]⚠ Please fill all fields[/yellow]")
+            return
+        
+        # Disable inputs during connection
+        username_input.disabled = True
+        password_input.disabled = True
+        status_msg.update("[cyan]🔄 Connecting to server...[/cyan]")
+        
+        # Connect in background thread
+        def connect():
+            conn = None
             try:
-                with self.lock:
-                    current_count = len(self.messages)
-                    needs_refresh = self.needs_refresh
-                    self.needs_refresh = False
+                self.app.call_from_thread(status_msg.update, "[cyan]🔄 Establishing connection...[/cyan]")
+                conn = SocketHandler()
+                conn.connect((self.ip, self.port))
                 
-                if needs_refresh and current_count != last_message_count:
-                    self.display_chat()
-                    last_message_count = current_count
+                self.app.call_from_thread(status_msg.update, "[cyan]🔄 Authenticating...[/cyan]")
                 
-                time.sleep(0.5)
+                login = Login(conn)
                 
-            except Exception:
-                pass
-    
-    
-    def receive_messages_thread(self, conn: SocketHandler, token: str) -> None:
-        """Thread to receive messages from the server"""
-        
-        while self.running:
-            try:
-                if not self.running:
-                    break
+                token = None
+                try:
+                    token = login.login(username, password)
+                except TimeoutError:
+                    raise TimeoutError("Authentication timeout - server not responding")
                 
-                type = int.from_bytes(conn.unsafe_recv(1), 'little')
-                
-                if type == MessageTypes.MESSAGE.value:
-                    user = conn.recv_short_bytes().decode('utf-8', 'replace')
-
-                    if not self.running:
-                        break
+                if token:
+                    self.app.call_from_thread(self.on_login_success, conn, token, username)
+                else:
+                    if conn:
+                        conn.close()
+                    self.app.call_from_thread(self.on_login_failed, "Invalid username or password")
                     
-                    data = conn.recv_int_bytes().decode('utf-8', 'replace')
-
-                    if data and user:
-                        self.receive_message(user, data)
-
-                    time.sleep(0.1)
-                
-                elif type == MessageTypes.STATUS_CODE.value:
-                    code = int.from_bytes(conn.unsafe_recv(2), 'little')
-                    self.queue.put(code)
-                    
-                
+            except ConnectionRefusedError:
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                self.app.call_from_thread(self.on_login_failed, "Server not available")
+            except TimeoutError as e:
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                self.app.call_from_thread(self.on_login_failed, f"Timeout: {str(e)}")
             except Exception as e:
-                if self.running:
-                    self.show_system_message(f"Connection error: {e}")
-                break
-    
-    
-    def isError(self, status_code: int) -> bool:
-        return status_code in {400, 401, 403, 500}
-    
-    
-    def handle_server_error(self, status_code: int, error_message: str | None = None) -> None:
-        """Handle server error status codes"""
-        error_messages = {
-            400: "Bad Request - Invalid message format",
-            401: "Unauthorized - expired token",
-            403: "Forbidden - You don't have permission",
-            500: "Internal Server Error - Try again later",
-        }
+                if conn:
+                    try:
+                        conn.close()
+                    except:
+                        pass
+                self.app.call_from_thread(self.on_login_failed, f"Error: {str(e)}")
         
-        message = error_message if error_message else error_messages.get(status_code, f"Unknown error (Code: {status_code})")
-        
-        self.show_system_message(f"Error: {message}")
-        
-        if status_code in {401, 403}:
-            console.print(f"\n[bold red]Session expired or unauthorized. Please login again.[/bold red]")
-            time.sleep(2)
-            self.running = False
+        threading.Thread(target=connect, daemon=True).start()
     
+    def on_login_success(self, conn: SocketHandler, token: str, username: str):
+        """Called when login succeeds"""
+        self.app.push_screen(ChatScreen(conn, token, username))
     
-    def send_message(self, conn: SocketHandler, token: str, message: str) -> bool:
-        """Send a message to the server"""
-        try:
-            conn.send_int_bytes(token.encode('utf-8') + message.encode('utf-8'))
-            
-            if message == "/exit":
-                return True
-                        
-            code = self.queue.get()
-                
-            if self.isError(code):
-                self.handle_server_error(code)
+    def on_login_failed(self, error: str):
+        """Called when login fails"""
+        status_msg = self.query_one("#status_msg", Static)
+        status_msg.update(f"[red]❌ {error}[/red]")
+        
+        username_input = self.query_one("#username_input", Input)
+        password_input = self.query_one("#password_input", Input)
+        username_input.disabled = False
+        password_input.disabled = False
+    
+    def action_back(self):
+        """Go back to connection screen"""
+        self.app.pop_screen()
 
-            elif code not in {100, 200}:
-                print(code)
-                time.sleep(10)
-                raise RuntimeError("Unexpected error")
-            
-            return True
-        except Exception as e:
-            self.show_system_message(f"Failed to send message: {e}")
-            return False
+
+class ChatScreen(Screen):
+    """Main chat screen"""
     
+    CSS = """
+    ChatScreen {
+        layout: vertical;
+    }
     
-    def run_chat_loop(self, conn: SocketHandler, token: str) -> None:
-        """Main chat loop"""
-        self.running = True
-        self.start_chat()
+    #chat_container {
+        height: 1fr;
+        border: solid $primary;
+        padding: 0 1;
+    }
+    
+    #message_log {
+        height: 1fr;
+        background: $surface;
+    }
+    
+    #input_container {
+        height: auto;
+        padding: 1;
+        background: $panel;
+    }
+    
+    #message_input {
+        width: 100%;
+    }
+    """
+    
+    BINDINGS = [
+        Binding("ctrl+q", "quit_chat", "Quit", show=True),
+    ]
+    
+    def __init__(self, conn: SocketHandler, token: str, username: str):
+        super().__init__()
+        self.conn = conn
+        self.token = token
+        self.username = username
+        self.running = False
+        self.queue = queue.Queue()
+    
+    def compose(self) -> ComposeResult:
+        yield Header()
+        with Vertical(id="chat_container"):
+            yield RichLog(id="message_log", wrap=True, highlight=True, markup=True)
+        with Container(id="input_container"):
+            yield Input(placeholder="Type your message...", id="message_input")
+        yield Footer()
+    
+    def on_mount(self) -> None:
+        """Called when screen is mounted"""
+        # Update header
+        self.app.title = f"KyloChat - {self.username}"
         
+        # Add welcome message
+        message_log = self.query_one("#message_log", RichLog)
+        message_log.write(Text("*** Welcome to KyloChat! ***", style="bold magenta"))
+        message_log.write(Text(f"*** {self.username} joined the chat! 👋 ***", style="italic yellow"))
+        
+        # Start receive thread
+        self.running = True
         self.receive_thread = threading.Thread(
             target=self.receive_messages_thread,
-            args=(conn, token),
             daemon=True
         )
         self.receive_thread.start()
         
-        self.refresh_thread = threading.Thread(
-            target=self.auto_refresh_thread,
-            daemon=True
-        )
-        self.refresh_thread.start()
+        # Focus input
+        self.query_one("#message_input", Input).focus()
+    
+    def on_input_submitted(self, event: Input.Submitted) -> None:
+        """Handle message send"""
+        message_input = self.query_one("#message_input", Input)
+        message = message_input.value.strip()
         
+        if not message:
+            return
+        
+        # Clear input
+        message_input.value = ""
+        
+        # Handle exit
+        if message == "/exit":
+            self.action_quit_chat()
+            return
+        
+        # Send message
+        if self.send_message(message):
+            self.add_message(self.username, message, is_own=True)
+    
+    def add_message(self, username: str, message: str, is_own: bool = False, is_system: bool = False):
+        """Add message to chat log"""
+        message_log = self.query_one("#message_log", RichLog)
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        
+        if is_system:
+            text = Text(f"*** {message} ***", style="italic yellow")
+        else:
+            style = "bold cyan" if is_own else "bold green"
+            text = Text()
+            text.append(username, style=style)
+            text.append(f" [{timestamp}]: ", style="dim")
+            text.append(message)
+        
+        message_log.write(text)
+    
+    def send_message(self, message: str) -> bool:
+        """Send message to server"""
+        try:
+            self.conn.send_int_bytes(self.token.encode('utf-8') + message.encode('utf-8'))
+            
+            # Wait for status code
+            code = self.queue.get(timeout=5)
+            
+            if code in {400, 401, 403, 500}:
+                self.handle_server_error(code)
+                return False
+            
+            return code in {100, 200}
+        
+        except queue.Empty:
+            self.add_message("System", "Server response timeout", is_system=True)
+            return False
+        except Exception as e:
+            self.add_message("System", f"Failed to send: {e}", is_system=True)
+            return False
+    
+    def handle_server_error(self, code: int):
+        """Handle server error codes"""
+        errors = {
+            400: "Bad Request - Invalid message format",
+            401: "Unauthorized - Session expired",
+            403: "Forbidden - No permission",
+            500: "Internal Server Error"
+        }
+        self.add_message("System", f"Error: {errors.get(code, f'Unknown error ({code})')}", is_system=True)
+        
+        if code in {401, 403}:
+            self.running = False
+            self.app.call_from_thread(self.action_quit_chat)
+    
+    def receive_messages_thread(self):
+        """Thread to receive messages from server"""
         while self.running:
             try:
-                message = self.get_user_message()
+                msg_type = int.from_bytes(self.conn.unsafe_recv(1), 'little')
                 
-                if message == '/exit':
-                    self.send_message(conn, token, message)
-                    self.handle_exit()
-                    break
+                if msg_type == MessageTypes.MESSAGE.value:
+                    user = self.conn.recv_short_bytes().decode('utf-8', 'replace')
+                    data = self.conn.recv_int_bytes().decode('utf-8', 'replace')
+                    
+                    if user and data:
+                        self.app.call_from_thread(self.add_message, user, data, is_own=False)
                 
-                if message.strip():
-                    if self.send_message(conn, token, message):
-                        self.add_message(self.username, message)
-                
-            except KeyboardInterrupt:
-                console.print("\n\n[yellow]Chat interrupted.[/yellow]")
-                self.running = False
-                self.send_message(conn, token, '/exit')
-                self.handle_exit()
+                elif msg_type == MessageTypes.STATUS_CODE.value:
+                    code = int.from_bytes(self.conn.unsafe_recv(2), 'little')
+                    self.queue.put(code)
+            
+            except Exception as e:
+                if self.running:
+                    self.app.call_from_thread(self.add_message, "System", f"Connection error: {e}", is_system=True)
                 break
+    
+    def action_quit_chat(self):
+        """Quit chat and return to connection screen"""
+        self.running = False
         
-            except Exception as ex:
-                console.print(f"\n\n[yellow]Warning: {ex}[/yellow]")
+        try:
+            self.conn.send_int_bytes(self.token.encode('utf-8') + b'/exit')
+            self.conn.close()
+        except:
+            pass
         
-        if self.receive_thread and self.receive_thread.is_alive():
-            self.receive_thread.join(timeout=2)
+        self.app.pop_screen()
+        self.app.pop_screen()
+        self.app.exit()
+
+
+class KyloChatApp(App):
+    """KyloChat Textual Application"""
     
+    CSS = """
+    Screen {
+        background: $background;
+    }
+    """
     
-    def receive_message(self, username: str, message: str) -> None:
-        """Call this method when receiving a message from server"""
-        self.add_message(username, message)
+    TITLE = "KyloChat"
+    SUB_TITLE = "Versatile and secure chat"
     
-    
-    def show_system_message(self, message: str) -> None:
-        """Display a system message"""
-        self.add_message("System", message, is_system=True)
+    def on_mount(self) -> None:
+        """Called when app starts"""
+        self.push_screen(ConnectionScreen())
 
 
 if __name__ == "__main__":
-    chat = KyloChat()
-    conn = SocketHandler()
-        
-    try:
-        # Get Server info
-        ip, port = chat.get_server_connection()
-
-        # Get credentials
-        username, password = chat.get_login_credentials()
-
-        chat.show_connecting()
-
-        conn.connect((ip, port))
-        login = Login(conn)
-
-        token = login.login(username, password)
-    
-        if token:
-            chat.show_login_success(username)
-            chat.run_chat_loop(conn, token)
-        else:
-            chat.show_login_failed("Invalid username or password")
-    except ConnectionRefusedError:
-        chat.show_login_failed('Server not available')
-    except TimeoutError:
-        chat.show_login_failed('Connection timeout')
-    except OSError as e:
-        chat.show_login_failed(f'Connection error: {e}')
-    except RuntimeError as e:
-        chat.show_login_failed(f'Connection failed: {e}')
-    except KeyboardInterrupt:
-        console.print("\n[yellow]Connection aborted[/yellow]")
+    app = KyloChatApp()
+    app.run()
