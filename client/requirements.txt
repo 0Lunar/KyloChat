@@ -1,3 +1,4 @@
 cryptography
 rich
 regex
+textual
