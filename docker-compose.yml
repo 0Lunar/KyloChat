@@ -1,6 +1,6 @@
 services:
   freaky_chat:
-    container_name: FreakyChat_Server
+    container_name: KyloChat_Server
     build: .
     restart: unless-stopped
     depends_on:
@@ -22,7 +22,7 @@ services:
           memory: 1G
   
   db:
-    container_name: FreakyChat_Database
+    container_name: KyloChat_Database
     image: mariadb:11.4
     environment:
       MARIADB_ROOT_PASSWORD: root
