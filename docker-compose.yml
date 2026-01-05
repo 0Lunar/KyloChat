@@ -9,7 +9,7 @@ services:
       CHAT_DB_HOST: db
       CHAT_DB_USER: root
       CHAT_DB_PASSWD: root
-      CHAT_DB_NAME: chat_db
+      CHAT_DB_NAME: KyloChatDB
     ports:
       - "53900:5000"
     deploy:
@@ -26,7 +26,7 @@ services:
     image: mariadb:11.4
     environment:
       MARIADB_ROOT_PASSWORD: root
-      MARIADB_DATABASE: chat_db
+      MARIADB_DATABASE: KyloChatDB
     volumes:
       - "./server/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
       - "./db_data:/var/lib/mysql:rw"

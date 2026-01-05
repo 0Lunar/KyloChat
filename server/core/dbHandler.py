@@ -14,7 +14,7 @@ class DBHandler(object):
             host=host or os.environ.get("CHAT_DB_HOST", "localhost"),
             username=username or os.environ.get("CHAT_DB_USER", "root"),
             password=password or os.environ.get("CHAT_DB_PASSWD", "root"),
-            database=database or os.environ.get("CHAT_DB_NAME", "chat_db"),
+            database=database or os.environ.get("CHAT_DB_NAME", "KyloChatDB"),
             autocommit=True
         )
         
