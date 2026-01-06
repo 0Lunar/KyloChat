@@ -193,7 +193,7 @@ class DBHandler(object):
         if res is None:
             return False
         
-        return res[0]
+        return bool(res[0])
     
 
     def existToken(self, token: str) -> bool:

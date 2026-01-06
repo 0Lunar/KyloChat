@@ -113,7 +113,7 @@ b'''
         return f'Error unbanning {user_id}'.encode('utf_8')
     
     
-    def isAdmin(self, user_id: int) -> (bool | bytes):
+    def isAdmin(self, user_id: int) -> bytes:
         if not self._db.isConnected():
             return b'Database not connected'
         
@@ -123,7 +123,7 @@ b'''
             except:
                 return b'Invalid UserID'
         
-        return self._db.isAdmin(user_id)
+        return b'True' if self._db.isAdmin(user_id) else b'False'
     
     
     def isBanned(self, user_id: int) -> (bool | bytes):
@@ -136,7 +136,7 @@ b'''
             except:
                 return b'Invalid UserID'
         
-        return self._db.checkBan(user_id)
+        return b'True' if self._db.checkBan(user_id, silent=True) else b'False'
     
     
     def changePasswd(self, user_id: int, passwd: str) -> bytes:
@@ -179,10 +179,8 @@ b'''
             else:
                 admin = False
         
-        if self._db.makeUser(username, password, email, admin, True):
-            return b'User created successfully'
-        
-        return f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode('utf-8')
+        return b'User created successfully' if self._db.makeUser(username, password, email, admin, True) \
+            else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode('utf-8')
     
     
     def revokeToken(self, token: str) -> bytes:
