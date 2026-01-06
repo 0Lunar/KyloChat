@@ -4,7 +4,7 @@ from core.ConnectionsHandler import ConnHandler
 class CommandHandler(object):
     def __init__(self, dbHandler: DBHandler, connHandler: ConnHandler) -> None:
         self.commands = {
-            "help": (0, self.helpCommand),
+            "help":     (0, self.helpCommand),
             "user_id":  (1, self.user_id),       # print user id : /user_id <username : str>
             "ban":      (1, self.banUser),       # Ban a user : /ban <usr_id : int>
             "unban":    (1, self.unbanUser),     # Unban a user : /unban <usr_id : int>
@@ -15,6 +15,7 @@ class CommandHandler(object):
             "mkusr":    (4, self.makeUser),      # Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
             "rvktk":    (1, self.revokeToken),   # Revoke a token : /rvktk <token : str>
             "rmtk":     (1, self.removeToken),   # Remove permanently the token : /rmtk <token : str>
+            "showtk":   (1, self.showTokens),    # Show the tokens in the database : /showtk <limit : int>
         }
         
         self._db = dbHandler
@@ -38,6 +39,7 @@ b'''
 /mkusr          Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
 /rvktk          Revoke a token:  /rvktk <token : str>
 /rmtk           Remove permanently the token : /rmtk <token : str>
+/showtk         Show the tokens in the database : /showtk <limit : int>
 '''
     
 
@@ -207,3 +209,30 @@ b'''
             return b'Token permanently removed'
         
         return b'Error removing the token'
+    
+    
+    def showTokens(self, limit: int) -> bytes:
+        if not self._db.isConnected():
+            return b'Database not connected'
+        
+        if type(limit) is not int:
+            try:
+                limit = int(limit)
+            except:
+                return b'Invalid limit'
+        
+        if limit < 1:
+            return b'Invalid limit'
+        
+        tokens = self._db.showTokens(limit)
+        
+        if tokens:
+            output = b'\n'
+            
+            for token in tokens:
+                tk, user, userid = token[0], token[1], token[2]
+                output += f'Token: {tk}\nUser: {user}\nUserID: {userid}\n\n'.encode('utf-8')
+                
+            return output[:-2]
+        
+        return b'No token found'

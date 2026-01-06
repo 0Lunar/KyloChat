@@ -512,6 +512,32 @@ class DBHandler(object):
         return True
     
     
+    def showTokens(self, limit: int = 100) -> (list | None):
+        """
+        Return the first N tokens in the database
+        
+        Args:
+            limit : The maximum number of tokens to return
+        
+        Returns:
+            out : list[Tokens] on success, None on failure
+        """
+        
+        if limit < 1:
+            return None
+        
+        cursor = self.db.cursor()
+        
+        cursor.execute(
+            "SELECT tokens.token, users.username, users.UserID FROM (tokens INNER JOIN users ON users.UserID = tokens.user) LIMIT %s",
+            (limit, )
+        )
+        
+        tokens = cursor.fetchall()
+        
+        return tokens
+    
+    
     def removeToken(self, token: str) -> bool:
         """
         Remove a token from the database
