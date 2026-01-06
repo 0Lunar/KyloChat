@@ -68,89 +68,104 @@ b'''
         return out
     
     
-    def user_id(self, username: str) -> int:
+    def user_id(self, username: str) -> bytes:
         if not self._db.isConnected():
-            return -1
+            return b'User not found'
         
-        return self._db.userID(username)
+        return f'UserID: {self._db.userID(username)}'.encode('utf-8')
     
     
-    def banUser(self, user_id: int) -> bool:
+    def banUser(self, user_id: int) -> bytes:
         if not self._db.isConnected():
-            return False
+            return b'Database not connected'
         
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
-                return False
+                return b'Invalid UserID'
     
-        return self._db.banUser(user_id)
+        if self._db.banUser(user_id):
+            return b'User Banned'
+        
+        return f'Error banning {user_id}'.encode('utf-8')
     
     
-    def unbanUser(self, user_id: int) -> bool:
+    def unbanUser(self, user_id: int) -> bytes:
         if not self._db.isConnected():
-            return False
+            return b'Database not connected'
         
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
-                return False
+                return b'Invalid UserID'
         
-        return self._db.unbanUser(user_id)
+        if self._db.unbanUser(user_id):
+            return b'User Unbanned'
+        
+        return f'Error unbanning {user_id}'.encode('utf_8')
     
     
-    def isAdmin(self, user_id: int) -> bool:
+    def isAdmin(self, user_id: int) -> (bool | bytes):
         if not self._db.isConnected():
-            return False
+            return b'Database not connected'
         
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
-                return False
+                return b'Invalid UserID'
         
         return self._db.isAdmin(user_id)
     
     
-    def isBanned(self, user_id: int) -> bool:
+    def isBanned(self, user_id: int) -> (bool | bytes):
         if not self._db.isConnected():
-            return False
+            return b'Database not connected'
         
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
-                return False
+                return b'Invalid UserID'
         
         return self._db.checkBan(user_id)
     
     
-    def changePasswd(self, user_id: int, passwd: str) -> bool:
+    def changePasswd(self, user_id: int, passwd: str) -> bytes:
         if not self._db.isConnected():
-            return False
+            return b'Database not connected'
         
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
-                return False
+                return b'Invalid UserID'
         
-        return self._db.changePasswd(user_id, passwd)
+        if self._db.changePasswd(user_id, passwd):
+            return b'Password Changed'
+    
+        return f'Error changing password for {user_id}'.encode('utf-8')
     
     
-    def lsip(self) -> tuple[str]:
-        return self._cn.get_all_ip()
+    def lsip(self) -> tuple:
+        return tuple(self._cn.get_all_hosts())
     
     
-    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> bool:
+    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> (bool | bytes):
+        if not self._db.isConnected():
+            return b'Database not connected'
+        
+        if not email or email.lower() == 'none':
+            email = None
+        
         if not username or not password or (admin and not email):
-            return False
+            return b'Missing parameters'
         
         if type(admin) is not bool:
             if type(admin) is str:
-                admin = True if admin == "True" else False
+                admin = True if admin.lower() == 'true' else False
             
             elif type(admin) is int:
                 admin = bool(admin)
@@ -158,4 +173,7 @@ b'''
             else:
                 admin = False
         
-        return self._db.makeUser(username, password, email, admin, True)
+        if self._db.makeUser(username, password, email, admin, True):
+            return b'User created successfully'
+        
+        return f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode('utf-8')
