@@ -1,5 +1,5 @@
 services:
-  freaky_chat:
+  Kylo_chat:
     container_name: KyloChat_Server
     build: .
     restart: unless-stopped
