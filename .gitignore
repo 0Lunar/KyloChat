@@ -1,2 +1,3 @@
 server/logs/
 __pycache__
+db_data/
