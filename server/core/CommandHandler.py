@@ -13,6 +13,8 @@ class CommandHandler(object):
             "usrpw":    (2, self.changePasswd),  # Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
             "lsip":     (0, self.lsip),          # List all the connected ip's : /lsusr
             "mkusr":    (4, self.makeUser),      # Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
+            "rvktk":    (1, self.revokeToken),   # Revoke a token : /rvktk <token : str>
+            "rmtk":     (1, self.removeToken),   # Remove permanently the token : /rmtk <token : str>
         }
         
         self._db = dbHandler
@@ -34,6 +36,8 @@ b'''
 /usrpw          Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
 /lsip           List all the connected ip's : /lsusr
 /mkusr          Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
+/rvktk          Revoke a token:  /rvktk <token : str>
+/rmtk           Remove permanently the token : /rmtk <token : str>
 '''
     
 
@@ -177,3 +181,29 @@ b'''
             return b'User created successfully'
         
         return f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode('utf-8')
+    
+    
+    def revokeToken(self, token: str) -> bytes:
+        if not self._db.isConnected():
+            return b'Database not connected'
+        
+        if not self._db.existToken(token):
+            return b'Token not found'
+        
+        if self._db.revokeToken(token):
+            return b'Token revoked'
+        
+        return b'Error revoking the token'
+    
+    
+    def removeToken(self, token: str) -> bytes:
+        if not self._db.isConnected():
+            return b'Database not connected'
+        
+        if not self._db.existToken(token):
+            return b'Token not found'
+        
+        if self._db.removeToken(token):
+            return b'Token permanently removed'
+        
+        return b'Error removing the token'

@@ -239,14 +239,26 @@ class DBHandler(object):
         )
         expire = cursor.fetchone()
         
-        cursor.close()
-        
         if expire is None:
+            cursor.close()
             return None
         
         expire = expire[0]  # type: datetime
         
-        return expire.timestamp() < datetime.now().timestamp()
+        if expire.timestamp() < datetime.now().timestamp():
+            cursor.close()
+            return True
+        
+        cursor.execute(
+            "SELECT tokens.revoked FROM tokens WHERE tokens.token=%s LIMIT 1",
+            (token, )
+        )
+        
+        revoked = cursor.fetchone()[0]
+        
+        cursor.close()
+        
+        return revoked
 
 
     def checkTokenBan(self, token: str) -> bool:
@@ -514,10 +526,42 @@ class DBHandler(object):
         if not token or len(token) != 36:
             return False
         
+        if not self.existToken(token):
+            return False
+        
         cursor = self.db.cursor()
         
         cursor.execute(
             "DELETE FROM tokens WHERE tokens.token=%s",
+            (token, )
+        )
+        
+        cursor.close()
+        
+        return True
+    
+    
+    def revokeToken(self, token: str) -> bool:
+        """
+        Revoke a token from the database
+        
+        Args:
+            token : The token to remove
+        
+        Returns:
+            out : `True` on success, `False` on failure
+        """
+        
+        if not token or len(token) != 36:
+            return False
+        
+        if not self.existToken(token):
+            return False
+        
+        cursor = self.db.cursor()
+        
+        cursor.execute(
+            "UPDATE tokens SET revoked=True WHERE tokens.token=%s",
             (token, )
         )
         
