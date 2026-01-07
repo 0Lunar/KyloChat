@@ -101,12 +101,15 @@ class ConnectionScreen(Screen):
             conn = SocketHandler()
             conn.connect((ip, int(port)))
         
-            # Switch to login screen
-            self.app.push_screen(LoginScreen(conn))
-        except Exception:
             ip_input.disabled = False
             port_input.disabled = False
-            error_msg.update("❌ Connection failed")
+        
+            # Switch to login screen
+            self.app.push_screen(LoginScreen(conn))
+        except Exception as ex:
+            ip_input.disabled = False
+            port_input.disabled = False
+            error_msg.update(f"❌ Connection failed: {ex}")
 
 
 class LoginScreen(Screen):
@@ -119,7 +122,7 @@ class LoginScreen(Screen):
     
     #login_box {
         width: 60;
-        height: 17;
+        height: 19;
         border: thick $primary;
         padding: 1 2;
     }
@@ -178,7 +181,6 @@ class LoginScreen(Screen):
         
         # Connect in background thread
         def connect():
-            conn = None
             try:
                 self.app.call_from_thread(status_msg.update, "[cyan]🔄 Authenticating...[/cyan]")
                 
@@ -191,49 +193,59 @@ class LoginScreen(Screen):
                     raise TimeoutError("Authentication timeout - server not responding")
                 
                 if token:
-                    self.app.call_from_thread(self.on_login_success, conn, token, username)
+                    self.app.call_from_thread(self.on_login_success, token, username)
                 else:
-                    if conn:
-                        conn.close()
                     self.app.call_from_thread(self.on_login_failed, "Invalid username or password")
                     
             except ConnectionRefusedError:
-                if conn:
+                if self.conn:
                     try:
-                        conn.close()
+                        self.conn.close()
                     except:
                         pass
                 self.app.call_from_thread(self.on_login_failed, "Server not available")
             except TimeoutError as e:
-                if conn:
+                if self.conn:
                     try:
-                        conn.close()
+                        self.conn.close()
                     except:
                         pass
                 self.app.call_from_thread(self.on_login_failed, f"Timeout: {str(e)}")
-            except Exception as e:
-                if conn:
+            
+            except OSError:
+                if self.conn:
                     try:
-                        conn.close()
+                        self.conn.close()
+                    except:
+                        pass
+                
+                self.app.call_from_thread(self.on_login_failed, "Connection closed - Too many failed attempts", True)
+                
+            except Exception as e:
+                if self.conn:
+                    try:
+                        self.conn.close()
                     except:
                         pass
                 self.app.call_from_thread(self.on_login_failed, f"Error: {str(e)}")
         
         threading.Thread(target=connect, daemon=True).start()
     
-    def on_login_success(self, conn: SocketHandler, token: str, username: str):
+    def on_login_success(self, token: str, username: str):
         """Called when login succeeds"""
-        self.app.push_screen(ChatScreen(conn, token, username))
+        self.app.push_screen(ChatScreen(self.conn, token, username))
     
-    def on_login_failed(self, error: str):
+    def on_login_failed(self, error: str, perm: bool = False):
         """Called when login fails"""
         status_msg = self.query_one("#status_msg", Static)
         status_msg.update(f"[red]❌ {error}[/red]")
         
         username_input = self.query_one("#username_input", Input)
         password_input = self.query_one("#password_input", Input)
-        username_input.disabled = False
-        password_input.disabled = False
+        
+        if not perm:
+            username_input.disabled = False
+            password_input.disabled = False
     
     def action_back(self):
         """Go back to connection screen"""
@@ -372,16 +384,12 @@ class ChatScreen(Screen):
         """Handle server error codes"""
         errors = {
             400: "Bad Request - Invalid message format",
-            401: "Unauthorized - Session expired",
+            401: "Unauthorized",
             403: "Forbidden - No permission",
             500: "Internal Server Error"
         }
         self.add_message("System", f"Error: {errors.get(code, f'Unknown error ({code})')}", is_system=True)
-        
-        if code in {401, 403}:
-            self.running = False
-            self.app.call_from_thread(self.action_quit_chat)
-    
+            
     def receive_messages_thread(self):
         """Thread to receive messages from server"""
         while self.running:

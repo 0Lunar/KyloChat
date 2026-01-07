@@ -22,7 +22,7 @@ login_attempts=4
 # Configure Security
 [Security]
 
-rate_limit=100
+rate_limit=10
 rate_limit_sleep=5000
 max_payload_size=500
 slow_down=0

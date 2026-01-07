@@ -6,15 +6,16 @@ COPY ./server/server.py /app/
 COPY ./server/core /app/core
 COPY ./server/requirements.txt /app/
 COPY ./server/scripts/wait-for-it.sh /wait-for-it.sh
+COPY ./server/config.toml /app/
 
 RUN chmod +x /wait-for-it.sh && \
     pip install --no-cache-dir -r /app/requirements.txt && \
-    useradd -M chat_usr && \
+    useradd -M kylochat && \
     mkdir -p /app/logs && \
     touch /app/logs/chatserver.log && \
-    chown -R root:chat_usr /app && \
+    chown -R root:kylochat /app && \
     chmod -R 770 /app
 
-USER chat_usr
+USER kylochat
 
 CMD ["/wait-for-it.sh", "db:3306", "--", "python3", "server.py"]

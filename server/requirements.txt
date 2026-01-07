@@ -2,3 +2,4 @@ bcrypt
 cryptography
 mysql-connector-python
 colorama
+toml

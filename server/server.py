@@ -28,6 +28,7 @@ SLEEP_MAX_CONNS = settings.sleep_on_full_conns
 SLOW_DOWN = settings.slow_down
 MAX_PAYLOAD_SIZE = settings.max_payload_size
 RATE_LIMIT = settings.rate_limit
+RATE_LIMIT_SLEEP = settings.rate_limit_sleep
 
 
 def send_status_code(conn: SocketHandler, code: int) -> None:
@@ -169,15 +170,16 @@ def handle_connection(session_id: str) -> None:
         try:
             payload = conn.recv_int_bytes()
             msg_cnt += 1
-                            
-            if (timestamp() - start_tm) % 1 >= 1:
-                if msg_cnt > settings.rate_limit:
-                    logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
-                    send_status_code(conn, 401)
-                    sleep(settings.sleep_on_full_conns)
-                    
-                    continue
+                              
+            if msg_cnt > RATE_LIMIT:
+                logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
+                send_status_code(conn, 401)
+                sleep(RATE_LIMIT_SLEEP)
+                msg_cnt = 0
                 
+                continue
+                
+            if (timestamp() - start_tm) % 1 >= 1:
                 msg_cnt = 0
                 start_tm = timestamp()
             
@@ -343,7 +345,7 @@ def main() -> None:
         while True:
             try:
                 # If the server is full
-                if hConn.count() > MAX_CONNECTIONS:
+                if MAX_CONNECTIONS > 0 and hConn.count() >= MAX_CONNECTIONS:
                     if SLEEP_MAX_CONNS > 0:
                         sleep(SLEEP_MAX_CONNS)
                     continue
