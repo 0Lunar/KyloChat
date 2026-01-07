@@ -77,6 +77,7 @@ Per-message format
 - Server environment variables (ports, DB credentials, etc.) are set in `docker-compose.yml`. Edit that file to change settings.
 - Ensure secure handling of secrets (do not commit production passwords or keys to git).
 - If you need persistent MariaDB storage, configure volumes in `docker-compose.yml`.
+- Server configuration in `server/config.toml` with **Security**, **Authentication** and other Features...
 
 ## Usage
 
@@ -120,14 +121,6 @@ The client then performs the cryptographic handshake (RSA/AES/HMAC) and attempts
     ```
 - Docker Compose issues:
   - Update Docker and Docker Compose to the latest versions and retry `docker compose up --build`.
-
-## Contributing
-Contributions are welcome! Suggested workflow:
-1. Open an issue to discuss feature ideas or bugs.
-2. Create a feature branch from `main`.
-3. Open a pull request describing your changes.
-
-For discussions, bug reports, or feature requests, use the repository Issues page: [Issues](https://github.com/0Lunar/KyloChat/issues)
 
 ## License
 This project is licensed under the GNU GPL v3.0. See the `LICENSE` file for details or visit the official page: [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
