@@ -25,15 +25,6 @@ class SocketHandler(socket.socket):
         conn.addr = remote
 
         return (conn, remote )
-    
-
-    def connect(self, address) -> None:
-        if self.connected:
-            raise RuntimeError("Already connected")
-
-        super().connect(address)
-        self.handshake()
-        self.connected = True
         
     
     def handshake(self) -> None:
@@ -49,7 +40,6 @@ class SocketHandler(socket.socket):
             raise RuntimeError("Connection closed")
 
         conn = super()
-        _timeout = conn.timeout
         key_size = 2048
 
         try:
@@ -63,8 +53,6 @@ class SocketHandler(socket.socket):
 
             pub_len = len(pub).to_bytes(length=2, byteorder='little')
             payload = pub_len + pub
-
-            conn.settimeout(10)
 
             conn.send(payload)
 
@@ -107,7 +95,6 @@ class SocketHandler(socket.socket):
             self.crypto.New_HMAC(key=hmac_key)
 
             self.hs = True
-            conn.settimeout(_timeout)
 
         except Exception as ex:
             conn.close()

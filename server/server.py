@@ -1,34 +1,33 @@
 from core import SocketHandler, Login, DBHandler, CommandHandler, Logger, MessageTypes
 from core import ConnHandler, ClientInfo
+from core import SettingsParser
+from core import ServerError, ClientDisconnected
 import threading
 import socket
 from colorama import Fore
-import time
+from time import sleep
+from time import time as timestamp
 from typing import Optional
 
 
-# Server Configuration
-IP = "0.0.0.0"
-PORT = 5000
-MAX_LOGIN_ATTEMPTS = 4
-MAX_CONNECTION_ERRORS = 5
-
-
 # Global handlers
+settings = SettingsParser()
 hConn = ConnHandler()
 hDb = DBHandler()
 hCommand = CommandHandler(hDb, hConn)
-logger = Logger(use_colors=True)
+logger = Logger(log_dir=settings.log_dir, log_file=settings.log_file, use_colors=True)
 
 
-class ServerError(Exception):
-    """Base exception for server errors"""
-    pass
-
-
-class ClientDisconnected(Exception):
-    """Raised when client disconnects"""
-    pass
+# Server Configuration
+IP = settings.ip
+PORT = settings.port
+MAX_LOGIN_ATTEMPTS = settings.login_attempts
+MAX_CONNECTIONS = settings.max_conns
+MAX_CONNECTION_ERRORS = settings.max_conn_errors
+SLEEP_MAX_CONNS = settings.sleep_on_full_conns
+SLOW_DOWN = settings.slow_down
+MAX_PAYLOAD_SIZE = settings.max_payload_size
+RATE_LIMIT = settings.rate_limit
 
 
 def send_status_code(conn: SocketHandler, code: int) -> None:
@@ -108,19 +107,16 @@ def validate_token(conn: SocketHandler, token: str, addr: tuple) -> bool:
     """
     if not hDb.existToken(token):
         logger.warning(f"Invalid token from {addr}")
-        time.sleep(0.1)
         send_status_code(conn, 403)
         return False
     
     if hDb.checkTokenBan(token):
         logger.warning(f"Banned token from {addr}")
-        time.sleep(0.1)
         send_status_code(conn, 403)
         return False
     
     if hDb.isExpiredToken(token):
         logger.warning(f"Expired token from {addr}")
-        time.sleep(0.1)
         send_status_code(conn, 401)
         return False
     
@@ -129,9 +125,7 @@ def validate_token(conn: SocketHandler, token: str, addr: tuple) -> bool:
 
 def handle_command(conn: SocketHandler, token: str, command: str, session_id: str) -> None:
     """Handle command execution"""
-    time.sleep(0.1)
     send_status_code(conn, 100)
-    time.sleep(0.1)
     
     if hDb.isAdminToken(token):
         logger.info(f"Executing command: {command}")
@@ -166,17 +160,43 @@ def handle_connection(session_id: str) -> None:
     conn = client.conn
     addr = client.addr
     errors = 0
+    msg_cnt = 0
+    start_tm = timestamp()
     
     logger.info(f"Starting message handler for {client.username} ({addr})")
     
     while True:
         try:
             payload = conn.recv_int_bytes()
+            msg_cnt += 1
+                            
+            if (timestamp() - start_tm) % 1 >= 1:
+                if msg_cnt > settings.rate_limit:
+                    logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
+                    send_status_code(conn, 401)
+                    sleep(settings.sleep_on_full_conns)
+                    
+                    continue
+                
+                msg_cnt = 0
+                start_tm = timestamp()
+            
+            if len(payload) > MAX_PAYLOAD_SIZE:
+                logger.warning(f'Payload size exceeded from {addr}: {len(payload)} bytes')
+                send_status_code(conn, 400)
+                
+                if SLOW_DOWN > 0:
+                    sleep(SLOW_DOWN)
+                
+                continue
             
             if len(payload) < 36:
                 logger.warning(f"Invalid payload size from {addr}: {len(payload)} bytes")
-                time.sleep(0.1)
                 send_status_code(conn, 400)
+                
+                if SLOW_DOWN > 0:
+                    sleep(SLOW_DOWN)
+                
                 continue
             
             token = payload[:36].decode(encoding='utf-8', errors='ignore')
@@ -187,6 +207,9 @@ def handle_connection(session_id: str) -> None:
                 break
             
             if not validate_token(conn, token, addr):
+                if SLOW_DOWN > 0:
+                    sleep(SLOW_DOWN)
+                    
                 continue
             
             logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
@@ -196,12 +219,11 @@ def handle_connection(session_id: str) -> None:
             if hCommand.isCommand(message):
                 handle_command(conn, token, message, session_id)
             else:
-                time.sleep(0.1)
                 send_status_code(conn, 200)
                 handle_message(token, data, session_id)
             
             errors = 0
-            
+                        
         except ConnectionResetError:
             logger.warning(f"Connection reset by {client.username} ({addr})")
             handle_exit_command(session_id, token)
@@ -220,6 +242,9 @@ def handle_connection(session_id: str) -> None:
                 logger.critical(f"Maximum error limit ({MAX_CONNECTION_ERRORS}) exceeded for {client.username} ({addr})")
                 handle_exit_command(session_id, token)
                 break
+            
+        if SLOW_DOWN > 0:
+            sleep(SLOW_DOWN)
     
     logger.info(f"Connection handler terminated for {client.username} ({addr})")
 
@@ -260,10 +285,10 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
             conn.close()
             return
         
+
         # Login notification
         login_message = f"{Fore.GREEN}{login_handler.logged_user}{Fore.RESET} logged in 👋".encode('utf-8')
         broadcast_system_message(login_message, exclude_session=session_id)
-        
         handle_connection(session_id)
         
     except ConnectionResetError:
@@ -317,10 +342,16 @@ def main() -> None:
     try:
         while True:
             try:
+                # If the server is full
+                if hConn.count() > MAX_CONNECTIONS:
+                    if SLEEP_MAX_CONNS > 0:
+                        sleep(SLEEP_MAX_CONNS)
+                    continue
+                
                 # Accept new connection
                 conn, addr = server_socket.listen()
                 logger.info(f"New connection from {addr}")
-                
+                                
                 # Handle in new thread
                 thread = threading.Thread(
                     target=handle_handshake,

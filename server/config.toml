@@ -1,0 +1,31 @@
+# Configure server IP and PORT
+# WARNING: If you use Docker and need to change the port, edit the docker-compose.yml
+[Address]
+
+ip_address='127.0.0.1'
+port=5000
+
+
+# Configure logging file
+[Logging]
+
+log_dir='logs'
+log_file='chatserver.log'
+
+
+# Configure authentication
+[Authentication]
+
+login_attempts=4
+
+
+# Configure Security
+[Security]
+
+rate_limit=100
+rate_limit_sleep=5000
+max_payload_size=500
+slow_down=0
+max_conns=0
+max_conn_errors=4
+sleep_on_full_conns=100

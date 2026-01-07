@@ -7,3 +7,5 @@ from .ConnectionsHandler import ClientInfo
 from .CommandHandler import CommandHandler
 from .Logger import Logger
 from .MessageTypes import MessageTypes
+from .SettingsParser import SettingsParser
+from .Exceptions import EncodingError, DecodingError, ClientDisconnected, ServerError, ParameterError

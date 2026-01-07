@@ -6,11 +6,12 @@ from datetime import datetime
 from colorama import init, Fore, Style
 
 class Logger:
-    def __init__(self, log_dir="logs", max_file_size=10*1024*1024, backup_count=5, 
-                 console_output=True, use_colors=True):
+    def __init__(self, log_dir="logs", log_file="chatserver.log", max_file_size: int = 10*1024*1024, backup_count: int = 5, 
+                 console_output: int = True, use_colors: int = True):
         init()
         
         self.log_dir = log_dir
+        self.log_file = log_file
         self.max_file_size = max_file_size
         self.backup_count = backup_count
         self.use_colors = use_colors and console_output
@@ -39,7 +40,7 @@ class Logger:
             console_formatter = file_formatter
         
         # Handler file
-        log_file = os.path.join(self.log_dir, 'chatserver.log')
+        log_file = os.path.join(self.log_dir, self.log_file)
         file_handler = logging.handlers.RotatingFileHandler(
             log_file,
             maxBytes=self.max_file_size,
