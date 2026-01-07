@@ -21,6 +21,7 @@ class SocketHandler(socket.socket):
 
         super().connect(address)
         self.handshake()
+        self.addr = address
         self.connected = True
         
     

@@ -338,7 +338,7 @@ class SocketHandler(socket.socket):
 
     def fail_code(self) -> None:
         """
-        Send the fail code (not encrypted) b'\x01'
+        Send the fail code (not encrypted) 0x01
         """
         
         if not self.connected:

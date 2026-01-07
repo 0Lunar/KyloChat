@@ -270,7 +270,7 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
                 break
             logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
         
-        if not token:
+        else:
             logger.warning(f"Maximum login attempts exceeded for {addr}")
             conn.close()
             return

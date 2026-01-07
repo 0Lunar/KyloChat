@@ -22,7 +22,7 @@ class ConnectionScreen(Screen):
     
     #connection_box {
         width: 60;
-        height: 16;
+        height: 18;
         border: thick $primary;
         padding: 1 2;
     }
@@ -59,7 +59,14 @@ class ConnectionScreen(Screen):
     
     def validate_ip(self, ip: str) -> bool:
         """Validate IP address format"""
-        return bool(re.match(r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$', ip)) or bool(re.match(r'^((([A-Za-z0-9\-\_])+\.)+)?([A-Za-z0-9\-\_])+\.([A-Za-z0-9\-\_])+$', ip))
+        
+        if ip.count('.') == 3 and not any([not i.isdigit() for i in ip.split('.')]):
+            return bool(re.match(r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$', ip))
+        
+        if ip.split('.')[-1].isdigit():
+            return False
+        
+        return bool(re.match(r'^((([A-Za-z0-9\-\_])+\.)+)?([A-Za-z0-9\-\_])+\.([A-Za-z0-9\-\_])+$', ip))
     
     def validate_port(self, port: str) -> bool:
         """Validate port number"""
@@ -87,8 +94,19 @@ class ConnectionScreen(Screen):
             error_msg.update("❌ Invalid port (1-65535)")
             return
         
-        # Switch to login screen
-        self.app.push_screen(LoginScreen(ip, int(port)))
+        ip_input.disabled = True
+        port_input.disabled = True
+        
+        try:
+            conn = SocketHandler()
+            conn.connect((ip, int(port)))
+        
+            # Switch to login screen
+            self.app.push_screen(LoginScreen(conn))
+        except Exception:
+            ip_input.disabled = False
+            port_input.disabled = False
+            error_msg.update("❌ Connection failed")
 
 
 class LoginScreen(Screen):
@@ -124,16 +142,15 @@ class LoginScreen(Screen):
         Binding("escape", "back", "Back", show=True),
     ]
     
-    def __init__(self, ip: str, port: int):
+    def __init__(self, conn: SocketHandler):
         super().__init__()
-        self.ip = ip
-        self.port = port
+        self.conn = conn
     
     def compose(self) -> ComposeResult:
         yield Header()
         with Container(id="login_box"):
             yield Static("🔐 [bold magenta]KyloChat[/bold magenta] - Login\n", id="title")
-            yield Static(f"Server: {self.ip}:{self.port}", id="server_info")
+            yield Static(f"Server: {self.conn.addr[0]}:{self.conn.addr[1]}", id="server_info")
             yield Static("Username:", classes="input_label")
             yield Input(placeholder="Enter username", id="username_input")
             yield Static("Password:", classes="input_label")
@@ -163,13 +180,9 @@ class LoginScreen(Screen):
         def connect():
             conn = None
             try:
-                self.app.call_from_thread(status_msg.update, "[cyan]🔄 Establishing connection...[/cyan]")
-                conn = SocketHandler()
-                conn.connect((self.ip, self.port))
-                
                 self.app.call_from_thread(status_msg.update, "[cyan]🔄 Authenticating...[/cyan]")
                 
-                login = Login(conn)
+                login = Login(self.conn)
                 
                 token = None
                 try:
