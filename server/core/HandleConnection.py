@@ -15,11 +15,10 @@ class SocketHandler(socket.socket):
             self.connected = False
     
 
-    def listen(self) -> tuple["SocketHandler", tuple[str, int]]:
+    def accept(self) -> tuple["SocketHandler", tuple[str, int]]:
         if self.connected:
             raise RuntimeError("Socket already connected")
 
-        super().listen()
         conn, remote = super().accept()
         conn = SocketHandler(socket.AF_INET, socket.SOCK_STREAM, 0, conn.detach())
         conn.addr = remote

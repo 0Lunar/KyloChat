@@ -1,10 +1,12 @@
 import toml
+import os
 from core.Exceptions import DecodingError, ParameterError
 
 
 class SettingsParser(object):
     def __init__(self, config_file: str = 'config.toml') -> None:
         assert config_file.endswith('.toml'), "Invalid file extension; use .toml"
+        assert os.path.isfile(config_file), "Configuration file not found"
         
         self.filename = config_file
         

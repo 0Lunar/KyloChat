@@ -333,10 +333,15 @@ def main() -> None:
     """Main server entry point"""
     logger.info(f"Starting KyloChat Server on {IP}:{PORT}...")
     
+    try:
     # Create server socket
-    server_socket = SocketHandler(socket.AF_INET, socket.SOCK_STREAM)
-    server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    server_socket.bind((IP, PORT))
+        server_socket = SocketHandler(socket.AF_INET, socket.SOCK_STREAM)
+        server_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        server_socket.bind((IP, PORT))
+        server_socket.listen()
+    except Exception as ex:
+        logger.critical(f"Error starting KyloChat: {ex}")
+        return
     
     logger.info(f"Server listening on {IP}:{PORT}")
     logger.info("Press Ctrl+C to stop the server")
@@ -351,7 +356,7 @@ def main() -> None:
                     continue
                 
                 # Accept new connection
-                conn, addr = server_socket.listen()
+                conn, addr = server_socket.accept()
                 logger.info(f"New connection from {addr}")
                                 
                 # Handle in new thread
@@ -364,6 +369,7 @@ def main() -> None:
                 thread.start()
                 
             except socket.timeout:
+                logger.error("Timeout")
                 continue
             
             except Exception as ex:

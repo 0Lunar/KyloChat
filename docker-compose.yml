@@ -11,7 +11,7 @@ services:
       CHAT_DB_PASSWD: root
       CHAT_DB_NAME: KyloChatDB
     ports:
-      - "53900:5000"
+      - "5000:5000/tcp"
   
   db:
     container_name: KyloChat_Database
