@@ -265,17 +265,33 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         login_handler = Login(conn)
         
         token = None
-        for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
-            token = login_handler.get_login()
-            if token:
-                logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
-                break
-            logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
+        
+        if MAX_LOGIN_ATTEMPTS > 0:
+            for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+                token = login_handler.get_login()
+                if token:
+                    logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
+                    break
+                logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
+
+            else:
+                logger.warning(f"Maximum login attempts exceeded for {addr}")
+                conn.close()
+                return
         
         else:
-            logger.warning(f"Maximum login attempts exceeded for {addr}")
-            conn.close()
-            return
+            attempt = 1
+            
+            while True:
+                token = login_handler.get_login()
+                
+                if token:
+                    logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
+                    break
+                
+                logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
+                attempt += 1
+
         
         try:
             session_id = hConn.add(conn, addr, login_handler.logged_user)
@@ -331,6 +347,7 @@ def shutdown_server() -> None:
 
 def main() -> None:
     """Main server entry point"""
+    logger.info(f"Server settings: \n{settings}")
     logger.info(f"Starting KyloChat Server on {IP}:{PORT}...")
     
     try:

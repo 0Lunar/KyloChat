@@ -42,6 +42,14 @@ class SettingsParser(object):
         self.config.update(m)
     
     
+    def __repr__(self) -> str:
+        return f'IP: {self.ip}\nPORT: {self.port}\nLog dir: {self.log_dir}\nLog file: {self.log_file}\nLogin attempts: {self.login_attempts if self.login_attempts > 0 else "No limit"}\nRate limit: {f'{self.rate_limit} msg/s' if self.rate_limit > 0 else "No limit"}\nRate limit sleep: {f'{self.rate_limit_sleep} s' if self.rate_limit_sleep > 0 else "No limit"}\nMax payload size: {f'{self.max_payload_size} bytes' if self.max_payload_size > 0 else "No limit"}\nDelay: {f'{self.slow_down} s' if self.slow_down > 0 else "No limit"}\nMax conns: {self.max_conns if self.max_conns > 0 else "No limit"}\nMax conn errors: {self.max_conn_errors if self.max_conn_errors > 0 else "No limit"}\nSleep on full conns: {f'{self.sleep_on_full_conns} s' if self.sleep_on_full_conns > 0 else "No limit"}'
+    
+    
+    def __str__(self) -> str:
+        return self.__repr__()
+    
+    
     def __getitem__(self, key):
         return self.config[key]
     
