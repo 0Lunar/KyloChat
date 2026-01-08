@@ -123,4 +123,4 @@ The client then performs the cryptographic handshake (RSA/AES/HMAC) and attempts
   - Update Docker and Docker Compose to the latest versions and retry `docker compose up --build`.
 
 ## License
-This project is licensed under the GNU GPL v3.0. See the `LICENSE` file for details or visit the official page: [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.en.html).
+This project is licensed under the GNU AGPL v3.0. See the `LICENSE` file for details or visit the official page: [GNU AGPL v3](https://www.gnu.org/licenses/agpl-3.0.en.html).
