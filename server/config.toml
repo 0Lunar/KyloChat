@@ -2,7 +2,7 @@
 # WARNING: If you use Docker and need to change the port, edit the docker-compose.yml
 [Address]
 
-ip_address='127.0.0.1'
+ip_address='0.0.0.0'
 port=5000
 
 
