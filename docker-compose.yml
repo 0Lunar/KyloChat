@@ -5,20 +5,32 @@ services:
     restart: unless-stopped
     depends_on:
       - db
+    networks:
+      - kylochat_net
     environment:
       CHAT_DB_HOST: db
       CHAT_DB_USER: root
       CHAT_DB_PASSWD: root
       CHAT_DB_NAME: KyloChatDB
     ports:
-      - "5000:5000/tcp"
+      - "53900:5000/tcp"
   
   db:
     container_name: KyloChat_Database
     image: mariadb:11.4
+    networks:
+      - kylochat_net
     environment:
       MARIADB_ROOT_PASSWORD: root
       MARIADB_DATABASE: KyloChatDB
     volumes:
       - "./server/database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro"
       - "./db_data:/var/lib/mysql:rw"
+
+networks:
+  kylochat_net:
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.enable_icc: "true"
+      com.docker.network.bridge.enable_ip_masquerade: "true"
+      com.docker.network.bridge.host_binding_ipv4: "0.0.0.0"
