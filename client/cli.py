@@ -1,9 +1,8 @@
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal
+from textual.containers import Container, Vertical
 from textual.widgets import Header, Footer, Static, Input, RichLog
 from textual.binding import Binding
 from textual.screen import Screen
-from textual import events
 from rich.text import Text
 from datetime import datetime
 from core import SocketHandler, Login, MessageTypes
