@@ -2,6 +2,7 @@ from core import SocketHandler, Login, DBHandler, CommandHandler, Logger, Messag
 from core import ConnHandler, ClientInfo
 from core import SettingsParser
 from core import ServerError, ClientDisconnected
+from core import Decompressor
 import threading
 import socket
 from colorama import Fore
@@ -168,8 +169,11 @@ def handle_connection(session_id: str) -> None:
     
     while True:
         try:
+            msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             payload = conn.recv_int_bytes()
             msg_cnt += 1
+            
+            logger.info(f"Received {len(payload)} bytes from {client.username} ({addr})")
                               
             if msg_cnt > RATE_LIMIT:
                 logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
@@ -182,6 +186,10 @@ def handle_connection(session_id: str) -> None:
             if (timestamp() - start_tm) % 1 >= 1:
                 msg_cnt = 0
                 start_tm = timestamp()
+                
+            if msg_type == MessageTypes.COMPRESSED_MSG.value:
+                decomporessor = Decompressor()
+                payload = decomporessor.decompress(payload)
             
             if len(payload) > MAX_PAYLOAD_SIZE:
                 logger.warning(f'Payload size exceeded from {addr}: {len(payload)} bytes')
@@ -214,7 +222,7 @@ def handle_connection(session_id: str) -> None:
                     
                 continue
             
-            logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
+            #logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
             
             message = data.decode(encoding='utf-8', errors='ignore')
             
