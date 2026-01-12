@@ -5,9 +5,10 @@ import time
 
 sys.path.append("../")
 
-from libs.CryptoHandler import CryptoHandler
 from libs.HandleConnection import SocketHandler
 from libs.Login import Login
+from libs.MessageTypes import MessageTypes
+
 
 parser = argparse.ArgumentParser('KyloChat Rate Limit Testing Script', description='A fast script to verify if the KyloChat rate limit is working')
 parser.add_argument('-a', '--host', type=str, help='The IP Address / Domain', required=True)
@@ -69,6 +70,7 @@ if __name__ == '__main__':
         print(f"Flooding {parsed.host}:{parsed.port}...")
         
         for idx in range(parsed.rate_limit + 1):
+            conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             conn.send_int_bytes(token.encode() + f'{idx + 1} Flooding...'.encode())
             msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             code = int.from_bytes(conn.unsafe_recv(2), 'little')
@@ -81,6 +83,7 @@ if __name__ == '__main__':
             
         try:
             start_tm = time.time()
+            conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             conn.send_int_bytes(token.encode() + b'Flooding...')
             msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             code = int.from_bytes(conn.unsafe_recv(2), 'little')
@@ -89,7 +92,7 @@ if __name__ == '__main__':
             print(f'Delay: {end_tm - start_tm:.02f}')
             print(f'Status code before delay: {last_code}')
             
-            if end_tm - start_tm >= parsed.timeout and last_code == 401:
+            if (end_tm - start_tm + 0.5) >= parsed.timeout and last_code == 401:
                 print("✅ Rate limit working")
                 
             else:

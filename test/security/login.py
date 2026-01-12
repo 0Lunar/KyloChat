@@ -8,7 +8,7 @@ import sys
 
 sys.path.append("../")
 
-from libs.CryptoHandler import CryptoHandler
+from libs.MessageTypes import MessageTypes
 from libs.HandleConnection import SocketHandler
 from libs.Login import Login
 
@@ -64,6 +64,7 @@ if __name__ == '__main__':
             print("Authenticated!")
             print(f"Token: {token}")
             
+            conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             conn.send_int_bytes(token.encode() + b'/exit')
             conn.close()
             
