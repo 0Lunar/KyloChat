@@ -99,14 +99,6 @@ On startup the client will prompt for:
 
 The client then performs the cryptographic handshake (RSA/AES/HMAC) and attempts to authenticate. If both succeed, you can start chatting.
 
-## Security recommendations
-- Run the server behind TLS/TCP proxies or VPNs if exposing it to the public internet.
-- Rotate server RSA keys periodically if long-lived deployments are used.
-- Use secure random generation for all keys and IVs.
-- Keep bcrypt work factor high enough for current hardware (adjust as needed).
-- Store secrets (DB passwords, any persistent keys) using environment secrets or a secret manager, not in plaintext or committed files.
-- Limit and monitor login attempts and access logs.
-
 ## Troubleshooting
 - Connection refused:
   - Verify IP/port entered in the client.
