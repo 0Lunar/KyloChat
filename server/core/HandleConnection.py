@@ -72,21 +72,21 @@ class SocketHandler(socket.socket):
             self.crypto.New_AES(key=aes_key)
 
             # Get HMAC
-            enc = conn.recv(64)
+            enc = conn.recv(92)
 
-            while len(enc) < 64:
-                chunk = conn.recv(64 - len(enc))
+            while len(enc) < 92:
+                chunk = conn.recv(92 - len(enc))
                 if not chunk:
                     raise RuntimeError("Failed to receive complete HMAC key")
                 enc += chunk
 
-            if len(enc) != 64:
+            if len(enc) != 92:
                 raise ValueError(f"Invalid HMAC key length: {len(enc)} != 64")
 
-            iv, encrypted_hmac_key = enc[:16], enc[16:]
+            nonce, aad, encrypted_hmac_key = enc[:12], enc[12:28], enc[28:]
 
-            self.crypto.AES_Update_Iv(iv)
-            hmac_key = self.crypto.AES_Decrypt(encrypted_hmac_key)
+            self.crypto.AES_set_AAD(aad)
+            hmac_key = self.crypto.AES_Decrypt(nonce, encrypted_hmac_key, aad)
 
             if hmac_key is None or len(hmac_key) != 32:
                 raise ValueError("Invalid HMAC key decrypted")
@@ -123,13 +123,12 @@ class SocketHandler(socket.socket):
         if len(data) < self.MIN_ENC_PAYLOAD:
             raise RuntimeError("Payload too short")
 
-        iv, data, sig = data[:16], data[16:-32], data[-32:]
+        nonce, aad, data, sig = data[:12], data[12:28], data[28:-32], data[-32:]
 
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
 
-        self.crypto.AES_Update_Iv(iv)
-        if not (data := self.crypto.AES_Decrypt(data)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data, aad)):
             raise RuntimeError("Error decrypting msg with AES")
 
         return data
@@ -151,14 +150,13 @@ class SocketHandler(socket.socket):
         if not msg:
             raise RuntimeError("Invalid Message")
         
-        iv = self.crypto.Generate_iv()
+        nonce = self.crypto.Generate_nonce()
         
-        self.crypto.AES_Update_Iv(iv)
-        data = self.crypto.AES_Encrypt(msg)
+        data = self.crypto.AES_Encrypt(nonce, msg, None)
         
         sig = self.crypto.Sign_HMAC(data)
         
-        payload = iv + data + sig
+        payload = nonce + self.crypto.aes_aad + data + sig
         
         super().send(payload)
         
@@ -176,17 +174,16 @@ class SocketHandler(socket.socket):
         if len(msg) > ((1 << (8 * n)) - 1) - 0x30:
             raise RuntimeError("Payload too big")
         
-        iv = self.crypto.Generate_iv()
+        nonce = self.crypto.Generate_nonce()
         
-        self.crypto.AES_Update_Iv(iv)
-        data = self.crypto.AES_Encrypt(msg)
+        data = self.crypto.AES_Encrypt(nonce, msg, None)
         
         if data is None:
             raise RuntimeError("Data encryption error (AES)")
         
         sig = self.crypto.Sign_HMAC(data)
         
-        payload = iv + data + sig
+        payload = nonce + self.crypto.aes_aad + data + sig
         payload_len = len(payload).to_bytes(n, 'little')
         
         super().send(payload_len)
@@ -219,13 +216,12 @@ class SocketHandler(socket.socket):
             
             data += chunk
         
-        iv, data, sig = data[:16], data[16:-32], data[-32:]        
+        nonce, aad, data, sig = data[:12], data[12:28], data[28:-32], data[-32:]        
         
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
         
-        self.crypto.AES_Update_Iv(iv)
-        if not (data := self.crypto.AES_Decrypt(data)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data, aad)):
             raise RuntimeError("Error decrypting msg with AES")
         
         return data
