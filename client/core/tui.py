@@ -9,7 +9,6 @@ from core import SocketHandler, Login, MessageTypes, Compressor
 import threading
 import queue
 import re
-from enum import Enum
 
 
 class ConnectionScreen(Screen):
@@ -254,6 +253,12 @@ class LoginScreen(Screen):
 
 
 class MenuScreen(ModalScreen):
+    CSS = """
+    MenuScreen {
+        background: rgba(0, 0, 0, 0.6);
+    }
+    """
+    
     BINDINGS = [
         Binding("escape", "back", "Back", show=True),
     ]
