@@ -123,12 +123,12 @@ class SocketHandler(socket.socket):
         if len(data) < self.MIN_ENC_PAYLOAD:
             raise RuntimeError("Payload too short")
 
-        nonce, aad, data, sig = data[:12], data[12:28], data[28:-32], data[-32:]
+        nonce, data, sig = data[:12], data[12:-32], data[-32:]
 
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
 
-        if not (data := self.crypto.AES_Decrypt(nonce, data, aad)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data, None)):
             raise RuntimeError("Error decrypting msg with AES")
 
         return data
@@ -156,7 +156,7 @@ class SocketHandler(socket.socket):
         
         sig = self.crypto.Sign_HMAC(data)
         
-        payload = nonce + self.crypto.aes_aad + data + sig
+        payload = nonce + data + sig
         
         super().send(payload)
         
@@ -183,7 +183,7 @@ class SocketHandler(socket.socket):
         
         sig = self.crypto.Sign_HMAC(data)
         
-        payload = nonce + self.crypto.aes_aad + data + sig
+        payload = nonce + data + sig
         payload_len = len(payload).to_bytes(n, 'little')
         
         super().send(payload_len)
@@ -216,12 +216,12 @@ class SocketHandler(socket.socket):
             
             data += chunk
         
-        nonce, aad, data, sig = data[:12], data[12:28], data[28:-32], data[-32:]        
+        nonce, data, sig = data[:12], data[12:-32], data[-32:]        
         
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
         
-        if not (data := self.crypto.AES_Decrypt(nonce, data, aad)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data, None)):
             raise RuntimeError("Error decrypting msg with AES")
         
         return data

@@ -121,6 +121,8 @@ class CryptoHandler(object):
     
 
     def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes, aad: bytes | None) -> (bytes | None):        
+        aad = aad or self.aes_aad
+        
         try:
             unpad = PKCS7(block_size=self.AES_BLOCK_SIZE_BITS).unpadder()
             decrypted_msg = self.aes.decrypt(nonce, encrypted_msg, aad)
