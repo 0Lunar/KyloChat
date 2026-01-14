@@ -1,6 +1,6 @@
 from cryptography.hazmat.primitives.asymmetric import rsa as RSA
 from cryptography.hazmat.primitives.asymmetric import padding as asmpadding
-from cryptography.hazmat.primitives.ciphers import Cipher, modes, algorithms
+from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives import serialization
@@ -16,7 +16,7 @@ class CryptoHandler(object):
         self.pub_key = None
         self.remote_pub = None
         self.aes_key = None
-        self.aes_iv = None
+        self.aes_aad = None
         self.hmac_key = None
         pass
 
@@ -29,7 +29,11 @@ class CryptoHandler(object):
         return token_bytes(32)
     
 
-    def Generate_iv(self) -> bytes:
+    def Generate_nonce(self) -> bytes:
+        return token_bytes(12)
+        
+        
+    def Generate_AAD(self) -> bytes:
         return token_bytes(16)
         
 
@@ -94,47 +98,32 @@ class CryptoHandler(object):
         return None
 
 
-    def New_AES(self, key: bytes | None = None, iv: bytes | None = None) -> None:
+    def New_AES(self, key: bytes | None = None) -> None:
         self.aes_key = key or self.Generate_AES256_key()
-        self.aes_iv = iv or self.Generate_iv()
-        self.aes = Cipher(
-            algorithm=algorithms.AES256(self.aes_key),
-            mode=modes.CBC(initialization_vector=self.aes_iv)
-        )
+        self.aes = AESGCM(self.aes_key)
     
-
-    def AES_Update_Iv(self, iv: bytes) -> None:
-        if not self.aes_key:
-            raise RuntimeError("AES not initialized")
-
-        if len(iv) != 16:
-            raise ValueError("IV must be 16 bytes long")
+    
+    def AES_set_AAD(self, aad: bytes) -> None:
+        self.aes_aad = aad 
+    
+    
+    def AES_Encrypt(self, nonce: bytes, msg: bytes, aad: bytes | None) -> (bytes | None):
+        aad = aad or self.aes_aad
         
-        self.aes_iv = iv
-
-        self.aes = Cipher(
-            algorithm=algorithms.AES256(self.aes_key),
-            mode=modes.CBC(initialization_vector=iv)
-        )
-
-    
-    def AES_Encrypt(self, msg: bytes) -> (bytes | None):
         try:
-            encryptor = self.aes.encryptor()
             pad = PKCS7(block_size=self.AES_BLOCK_SIZE_BITS).padder()
             padded_msg = pad.update(msg) + pad.finalize()
-            encrypted_msg = encryptor.update(padded_msg) + encryptor.finalize()
+            encrypted_msg = self.aes.encrypt(nonce, padded_msg, aad)
 
             return encrypted_msg
         except:
             return None
     
 
-    def AES_Decrypt(self, encrypted_msg: bytes) -> (bytes | None):
+    def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes, aad: bytes | None) -> (bytes | None):        
         try:
-            decryptor = self.aes.decryptor()
             unpad = PKCS7(block_size=self.AES_BLOCK_SIZE_BITS).unpadder()
-            decrypted_msg = decryptor.update(encrypted_msg) + decryptor.finalize()
+            decrypted_msg = self.aes.decrypt(nonce, encrypted_msg, aad)
             unpadded_msg = unpad.update(decrypted_msg) + unpad.finalize()
 
             return unpadded_msg
