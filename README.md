@@ -21,17 +21,18 @@ KyloChat implements a hybrid cryptographic handshake and per-message authenticat
 
 Handshake
 1. Server generates a fresh **RSA-2048** key pair on startup and shares the RSA public key with connecting clients.
-2. Client generates a random **AES-256** key (for *AES-256-CBC*) and encrypts that AES key using the server's RSA public key. The client sends the RSA-encrypted AES key to the server.
-3. Once the server decrypts the AES key, the client generates a 32-byte **HMAC** key (for *HMAC-SHA256*). The client sends the HMAC key encrypted with AES-256-CBC (using the previously exchanged AES key).
+2. Client generates a random **AES-256** key (for *AES-256-GCM*) and encrypts that AES key using the server's RSA public key. The client sends the RSA-encrypted AES key to the server.
+3. Once the server decrypts the AES key, the client generates a 32-byte **HMAC** key (for *HMAC-SHA256*). The client sends the HMAC key encrypted with AES-256-GCM (using the previously exchanged AES key).
 4. After this exchange both client and server hold:
-   - AES-256-CBC key for message encryption.
+   - AES-256-GCM key for message encryption.
    - HMAC-SHA256 32-byte key for message authentication.
 
 Per-message format
 - Each message payload sent from client to server is:
-  - cipher = AES-256-CBC encrypt(token + message)
+  - nonce = AES-256-GCM nonce (12 bytes)
+  - cipher = AES-256-GCM encrypt(token + message)
   - tag = HMAC-SHA256(cipher)
-  - Final payload = cipher || tag
+  - Final payload = nonce || cipher || tag
 - The HMAC covers the ciphertext to provide integrity and authenticity.
 
 ## Privacy
