@@ -1,5 +1,5 @@
-from libs.CryptoHandler import CryptoHandler
-from libs.HandleConnection import SocketHandler
+from core.CryptoHandler import CryptoHandler
+from core.HandleConnection import SocketHandler
 
 
 class Login(object):

@@ -8,9 +8,9 @@ import sys
 
 sys.path.append("../")
 
-from libs.MessageTypes import MessageTypes
-from libs.HandleConnection import SocketHandler
-from libs.Login import Login
+from core.MessageTypes import MessageTypes
+from core.HandleConnection import SocketHandler
+from core.Login import Login
 
 
 parser = argparse.ArgumentParser('KyloChat Login Script', description='A fast script to verify the KyloChat Authentication')

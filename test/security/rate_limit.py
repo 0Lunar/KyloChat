@@ -5,9 +5,9 @@ import time
 
 sys.path.append("../")
 
-from libs.HandleConnection import SocketHandler
-from libs.Login import Login
-from libs.MessageTypes import MessageTypes
+from core.HandleConnection import SocketHandler
+from core.Login import Login
+from core.MessageTypes import MessageTypes
 
 
 parser = argparse.ArgumentParser('KyloChat Rate Limit Testing Script', description='A fast script to verify if the KyloChat rate limit is working')
