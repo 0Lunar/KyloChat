@@ -98,7 +98,12 @@ if __name__ == '__main__':
             else:
                 print("❌Rate limit not working")
             
+            conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+            conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + b'/exit')
         except TimeoutError:
             print("Timeout exeeded, possible cause: rate limit")
     except Exception as ex:
         print(f'Unexpected error: {ex}')
+
+    finally:
+        conn.close()
