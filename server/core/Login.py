@@ -53,7 +53,7 @@ class Login(object):
             token = self.db.makeToken(UserID)
             
             self.logger.info(f"Token for {self.conn.addr}: {token[:14] + "*" * 22}")
-            self.conn.send_short_bytes(token.encode())
+            self.conn.send_short_bytes(token.encode(encoding='utf-8', errors='strict'))
             
             self.logged_user = username
             return token

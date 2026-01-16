@@ -418,14 +418,14 @@ class ChatScreen(Screen):
         try:
             if self.compression:
                 self.conn.unsafe_send(MessageTypes.COMPRESSED_MSG.value.to_bytes(1, 'little'))
-                payload = self.token.encode('utf-8') + message.encode('utf-8')
+                payload = self.token.encode(encoding='utf-8', errors='strict') + message.encode(encoding='utf-8', errors='strict')
                 compressor = Compressor()
                 payload = compressor.compress(payload) + compressor.flush()
                 
                 self.conn.send_int_bytes(payload)
             else:
                 self.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
-                self.conn.send_int_bytes(self.token.encode('utf-8') + message.encode('utf-8'))
+                self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + message.encode(encoding='utf-8', errors='srict'))
             
             # Wait for status code
             code = self.queue.get(timeout=5)
@@ -477,14 +477,14 @@ class ChatScreen(Screen):
     
     def action_quit_chat(self):
         """Quit chat and return to connection screen"""
-        self.running = False
-        
         try:
-            self.conn.send_int_bytes(self.token.encode('utf-8') + b'/exit')
+            self.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+            self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + b'/exit')
             self.conn.close()
         except:
             pass
         
+        self.running = False
         self.app.pop_screen()
         self.app.pop_screen()
         self.app.exit()

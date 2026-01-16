@@ -69,7 +69,7 @@ def broadcast_user_message(username: str, message: bytes, exclude_session: Optio
         
         try:
             client.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
-            client.conn.send_short_bytes(username.encode('utf-8'))
+            client.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
             client.conn.send_int_bytes(message)
         except Exception as e:
             logger.error(f"Failed to send message to {client.username}: {e}")
@@ -88,7 +88,7 @@ def handle_exit_command(session_id: str, token: str) -> None:
         
     # System notification
     if hDb.existToken(token):
-        system_msg = Fore.RED.encode() + username.encode() + b' disconnected'
+        system_msg = Fore.RED.encode(encoding='utf-8', errors='strict') + username.encode(encoding='utf-8', errors='strict') + b' disconnected'
         broadcast_system_message(system_msg, exclude_session=session_id)
     
     # Close connection and remove from handler
@@ -183,7 +183,7 @@ def handle_connection(session_id: str) -> None:
                 
                 continue
                 
-            if (timestamp() - start_tm) % 1 >= 1:
+            if (timestamp() - start_tm) >= 1:
                 msg_cnt = 0
                 start_tm = timestamp()
                 
@@ -313,7 +313,7 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         
 
         # Login notification
-        login_message = f"{Fore.GREEN}{login_handler.logged_user}{Fore.RESET} logged in 👋".encode('utf-8')
+        login_message = f"{Fore.GREEN}{login_handler.logged_user}{Fore.RESET} logged in 👋".encode(encoding='utf-8', errors='strict')
         broadcast_system_message(login_message, exclude_session=session_id)
         handle_connection(session_id)
         

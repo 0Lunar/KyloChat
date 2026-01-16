@@ -65,7 +65,7 @@ if __name__ == '__main__':
             print(f"Token: {token}")
             
             conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
-            conn.send_int_bytes(token.encode() + b'/exit')
+            conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + b'/exit')
             conn.close()
             
             print("Exited")

@@ -67,7 +67,7 @@ b'''
         
         if type(out) != bytes:
             try:
-                return str(out).encode()
+                return str(out).encode(encoding='utf-8', errors='strict')
             except Exception as ex:
                 return b"Error"
         
@@ -78,7 +78,7 @@ b'''
         if not self._db.isConnected():
             return b'User not found'
         
-        return f'UserID: {self._db.userID(username)}'.encode('utf-8')
+        return f'UserID: {self._db.userID(username)}'.encode(encoding='utf-8', errors='strict')
     
     
     def banUser(self, user_id: int) -> bytes:
@@ -94,7 +94,7 @@ b'''
         if self._db.banUser(user_id):
             return b'User Banned'
         
-        return f'Error banning {user_id}'.encode('utf-8')
+        return f'Error banning {user_id}'.encode(encoding='utf-8', errors='strict')
     
     
     def unbanUser(self, user_id: int) -> bytes:
@@ -110,7 +110,7 @@ b'''
         if self._db.unbanUser(user_id):
             return b'User Unbanned'
         
-        return f'Error unbanning {user_id}'.encode('utf_8')
+        return f'Error unbanning {user_id}'.encode(encoding='utf_8', errors='strict')
     
     
     def isAdmin(self, user_id: int) -> bytes:
@@ -152,7 +152,7 @@ b'''
         if self._db.changePasswd(user_id, passwd):
             return b'Password Changed'
     
-        return f'Error changing password for {user_id}'.encode('utf-8')
+        return f'Error changing password for {user_id}'.encode(encoding='utf-8', errors='strict')
     
     
     def lsip(self) -> tuple:
@@ -180,7 +180,7 @@ b'''
                 admin = False
         
         return b'User created successfully' if self._db.makeUser(username, password, email, admin, True) \
-            else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode('utf-8')
+            else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode(encoding='utf-8', errors='strict')
     
     
     def revokeToken(self, token: str) -> bytes:
@@ -229,7 +229,7 @@ b'''
             
             for token in tokens:
                 tk, user, userid = token[0], token[1], token[2]
-                output += f'Token: {tk}\nUser: {user}\nUserID: {userid}\n\n'.encode('utf-8')
+                output += f'Token: {tk}\nUser: {user}\nUserID: {userid}\n\n'.encode(encoding='utf-8', errors='strict')
                 
             return output[:-2]
         

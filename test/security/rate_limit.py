@@ -71,7 +71,7 @@ if __name__ == '__main__':
         
         for idx in range(parsed.rate_limit + 1):
             conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
-            conn.send_int_bytes(token.encode() + f'{idx + 1} Flooding...'.encode())
+            conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + f'{idx + 1} Flooding...'.encode(encoding='utf-8', errors='strict'))
             msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             code = int.from_bytes(conn.unsafe_recv(2), 'little')
             
@@ -84,7 +84,7 @@ if __name__ == '__main__':
         try:
             start_tm = time.time()
             conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
-            conn.send_int_bytes(token.encode() + b'Flooding...')
+            conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + b'Flooding...')
             msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             code = int.from_bytes(conn.unsafe_recv(2), 'little')
             end_tm = time.time()

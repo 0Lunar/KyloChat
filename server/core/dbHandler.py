@@ -127,7 +127,7 @@ class DBHandler(object):
                 return False
             raise RuntimeError("Database Response is NULL")
                 
-        return self.crypto.Bcrypt_Check(password.encode(), hs_passwd[0].encode())
+        return self.crypto.Bcrypt_Check(password.encode(encoding='utf-8', errors='strict'), hs_passwd[0].encode(encoding='utf-8', errors='strict'))
 
 
     def checkBan(self, username: str | int, silent: bool = False) -> bool:
@@ -437,7 +437,7 @@ class DBHandler(object):
             return False
         
         passwd = self.crypto.Bcrypt_Hash(
-            newPasswd.encode(),
+            newPasswd.encode(encoding='utf-8', errors='strict'),
             self.crypto.Generate_Bcrypt_Salt()
         ).decode(encoding='utf-8', errors='ignore')
         
@@ -489,7 +489,7 @@ class DBHandler(object):
         
         email = email or 'None'
         hashed_password = self.crypto.Bcrypt_Hash(
-            password.encode(),
+            password.encode(encoding='utf-8', errors='strict'),
             self.crypto.Generate_Bcrypt_Salt()
         )
         

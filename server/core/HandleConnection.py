@@ -40,6 +40,8 @@ class SocketHandler(socket.socket):
 
         conn = super()
         key_size = 2048
+        _timeout = conn.timeout
+        conn.settimeout(10)
 
         try:
             # Public Key RSA
@@ -93,6 +95,7 @@ class SocketHandler(socket.socket):
 
             self.crypto.New_HMAC(key=hmac_key)
 
+            conn.settimeout(None)
             self.hs = True
 
         except Exception as ex:
