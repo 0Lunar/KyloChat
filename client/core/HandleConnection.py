@@ -40,12 +40,14 @@ class SocketHandler(socket.socket):
 
         try:
             # Public Key RSA
-            size = int.from_bytes(conn.recv(2), 'little')
-            pub = conn.recv(size)
-                        
-            self.crypto.RSA_import_pub_key(pub)
-                        
-            aes_key = self.crypto.Generate_AES256_key()
+            self.crypto.New_ECC()
+            pub = self.crypto.ECC_export_pub_key()
+            
+            srv_pub = conn.recv(32)
+            
+            self.crypto.ECC_import_pub_bytes(srv_pub)
+            
+            aes_key = self.crypto.ECC_calc_key()
             aes_nonce = self.crypto.Generate_nonce()
             aes_aad = self.crypto.Generate_AAD()
             hmac_key = self.crypto.Generate_HMAC_key()
@@ -54,10 +56,9 @@ class SocketHandler(socket.socket):
             self.crypto.AES_set_AAD(aes_aad)
             self.crypto.New_HMAC(hmac_key)
             
-            encrypted_aes_key = self.crypto.RSA_encrypt(aes_key) or b''
             encrypted_hmac_key = self.crypto.AES_Encrypt(aes_nonce, hmac_key, aes_aad) or b''
-                        
-            conn.send(encrypted_aes_key)
+            
+            conn.send(pub)
             conn.send(aes_nonce + aes_aad + encrypted_hmac_key)
             
             self.hs = True

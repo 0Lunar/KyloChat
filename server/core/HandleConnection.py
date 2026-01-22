@@ -44,34 +44,22 @@ class SocketHandler(socket.socket):
         conn.settimeout(10)
 
         try:
-            # Public Key RSA
-            self.crypto.New_RSA(key_size=key_size)
-
-            pub = self.crypto.RSA_export_pub_key()
+            # X25519
+            
+            self.crypto.New_ECC()
+            pub = self.crypto.ECC_export_pub_key()
 
             if pub is None:
-                raise RuntimeError("Error exporting RSA public key")
-
-            pub_len = len(pub).to_bytes(length=2, byteorder='little')
-            payload = pub_len + pub
-
-            conn.send(payload)
-
-            # Get Encrypted AES Key
-            enc = conn.recv(key_size // 8)      #   2048 bit -> 256 bytes
-
-            while len(enc) < (key_size // 8):
-                chunk = conn.recv((key_size // 8) - len(enc))
-                if not chunk:
-                    raise RuntimeError("Failed to receive complete AES key")
-                enc += chunk
-
-            aes_key = self.crypto.RSA_decrypt(enc)
-
-            if aes_key is None or len(aes_key) not in (16, 24, 32):
-                raise ValueError("Invalid AES key")
-
-            self.crypto.New_AES(key=aes_key)
+                raise RuntimeError("Error exporting X25519 public key")
+            
+            conn.send(pub)
+            
+            payload = conn.recv(32)
+            
+            self.crypto.ECC_import_pub_bytes(payload)
+            aes_key = self.crypto.ECC_calc_key()
+            
+            self.crypto.New_AES(aes_key)
 
             # Get HMAC
             enc = conn.recv(92)
