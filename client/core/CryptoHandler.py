@@ -110,7 +110,7 @@ class CryptoHandler(object):
         ).decode()
         
         with open(fingerprint_file, 'a') as f:
-            f.write(f'{hostname} {crt}')
+            f.write(f'{hostname} {crt}\n')
     
     
     def CERT_Check(self, hostname: str, fingerprint_file: str = "fingers.pub") -> bool:
