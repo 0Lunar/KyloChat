@@ -1,10 +1,11 @@
-from cryptography.hazmat.primitives.asymmetric import rsa as RSA
-from cryptography.hazmat.primitives.asymmetric import padding as asmpadding
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.padding import PKCS7
+from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
+from cryptography.hazmat.primitives.kdf.hkdf import HKDF
+from cryptography.hazmat.primitives.asymmetric import ec
 from secrets import token_bytes
 
 
@@ -39,62 +40,38 @@ class CryptoHandler(object):
 
     def random_bytes(self, length: int) -> bytes:
         return token_bytes(length)
-
-
-    def New_RSA(self, key_size: int = 2048, exponent: int = 65537):
-        self.priv_key = RSA.generate_private_key(exponent, key_size)
-        self.pub_key = self.priv_key.public_key()
-
     
-    def RSA_export_pub_key(self) -> (bytes | None):
+    
+    def New_ECC(self) -> None:
+        self.priv_key = X25519PrivateKey.generate()
+        self.pub_key = self.priv_key.public_key()
+        
+    
+    def ECC_export_pub_key(self) -> (bytes | None):
         if self.pub_key:
             return self.pub_key.public_bytes(
-                encoding=serialization.Encoding.PEM,
-                format=serialization.PublicFormat.SubjectPublicKeyInfo
+                encoding=serialization.Encoding.Raw,
+                format=serialization.PublicFormat.Raw
             )
-    
+        
         return None
-
-
-    def RSA_import_pub_key(self, pub_key: bytes) -> None:
-        self.remote_pub = serialization.load_pem_public_key(pub_key)
     
-
-    def RSA_encrypt(self, msg: bytes) -> (bytes | None):
-        if self.remote_pub:
-            return self.remote_pub.encrypt(
-                plaintext=msg,
-                padding=asmpadding.OAEP(
-                    mgf=asmpadding.MGF1(algorithm=SHA256()),
-                    algorithm=SHA256(),
-                    label=None
-                )
-            )
-
-        elif self.pub_key:
-            return self.pub_key.encrypt(
-                plaintext=msg,
-                padding=asmpadding.OAEP(
-                    mgf=asmpadding.MGF1(algorithm=SHA256()),
-                    algorithm=SHA256(),
-                    label=None
-                )
-            )
     
-        return None
-
-
-    def RSA_decrypt(self, encrypted: bytes) -> (bytes | None):
-        if self.priv_key:
-            return self.priv_key.decrypt(
-                ciphertext=encrypted,
-                padding=asmpadding.OAEP(
-                    mgf=asmpadding.MGF1(algorithm=SHA256()),
-                    algorithm=SHA256(),
-                    label=None
-                )
-            )
-
+    def ECC_import_pub_bytes(self, pub_key: bytes) -> None:
+        self.remote_pub = X25519PublicKey.from_public_bytes(pub_key)
+        
+        
+    def ECC_calc_key(self) -> (bytes | None):
+        if self.priv_key and self.remote_pub:
+            shared_key = self.priv_key.exchange(self.remote_pub)
+            
+            return HKDF(
+                algorithm=SHA256(),
+                length=32,
+                salt=None,
+                info=b'Key Derivation for X25519'
+            ).derive(shared_key)
+            
         return None
 
 

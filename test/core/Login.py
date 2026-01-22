@@ -21,13 +21,13 @@ class Login(object):
             Status : 'Token' if authenticated; Empity string otherwise
         """
         
-        self.conn.send_short_bytes(username.encode(encoding='utf-8', errors='replace'))
+        self.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
         fail = self.conn.recv_code()
         
         if fail:
             return None
         
-        self.conn.send_short_bytes(password.encode(encoding='utf-8', errors='replace'))
+        self.conn.send_short_bytes(password.encode(encoding='utf-8', errors='strict'))
         fail = self.conn.recv_code()
         
         if fail:
