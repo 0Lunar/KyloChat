@@ -7,6 +7,7 @@ from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X
 from cryptography.hazmat.primitives.kdf.hkdf import HKDF
 from cryptography.hazmat.primitives.asymmetric import ec
 from secrets import token_bytes
+import os
 
 
 class CryptoHandler(object):
@@ -19,26 +20,28 @@ class CryptoHandler(object):
         self.aes_key = None
         self.aes_aad = None
         self.hmac_key = None
+        self.cert = None
         pass
 
 
-    def Generate_AES256_key(self) -> bytes:
+    @staticmethod
+    def Generate_AES256_key() -> bytes:
         return token_bytes(32)
 
-
-    def Generate_HMAC_key(self) -> bytes:
+    @staticmethod
+    def Generate_HMAC_key() -> bytes:
         return token_bytes(32)
     
-
-    def Generate_nonce(self) -> bytes:
+    @staticmethod
+    def Generate_nonce() -> bytes:
         return token_bytes(12)
         
-        
-    def Generate_AAD(self) -> bytes:
+    @staticmethod
+    def Generate_AAD() -> bytes:
         return token_bytes(16)
         
-
-    def random_bytes(self, length: int) -> bytes:
+    @staticmethod
+    def random_bytes(length: int) -> bytes:
         return token_bytes(length)
     
     
@@ -73,6 +76,75 @@ class CryptoHandler(object):
             ).derive(shared_key)
             
         return None
+    
+    
+    def CERT_Import(self, cert: bytes) -> None:
+        self.cert = serialization.load_ssh_public_key(
+            data=cert
+        )
+        
+    
+    def CERT_Verify(self, data: bytes, sign: bytes) -> bool:
+        if self.cert is None:
+            raise RuntimeError("Invalid Certificate")
+        
+        try:
+            self.cert.verify(
+                signature=sign,
+                data=data,
+                signature_algorithm=ec.ECDSA(SHA256())
+            )
+            
+            return True
+        except:
+            return False
+        
+        
+    def CERT_Save(self, hostname: str, fingerprint_file: str = "fingers.pub") -> None:
+        if self.cert is None:
+            raise RuntimeError("Invalid Certificate")
+        
+        crt = self.cert.public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH
+        ).decode()
+        
+        with open(fingerprint_file, 'a') as f:
+            f.write(f'{hostname} {crt}\n')
+    
+    
+    def CERT_Check(self, hostname: str, fingerprint_file: str = "fingers.pub") -> bool:
+        if self.cert is None:
+            raise RuntimeError("Invalid Certificate")
+        
+        hostname = hostname.strip()
+        
+        if not os.path.isfile(fingerprint_file):
+            self.CERT_Save(hostname, fingerprint_file)
+            return True
+        
+        with open(fingerprint_file, 'rt') as f:
+            while (fingerprint := f.readline()) != '':
+                host = fingerprint.split(" ")[0].strip()
+                
+                if host == hostname:
+                    break
+        
+        if not fingerprint:
+            self.CERT_Save(hostname, fingerprint_file)
+            return True
+        
+        local_cert = fingerprint[len(host) + 1 : ].strip()
+        
+        cert = self.cert.public_bytes(
+            encoding=serialization.Encoding.OpenSSH,
+            format=serialization.PublicFormat.OpenSSH
+        ).decode().strip()
+        
+        if cert != local_cert:
+            return False
+    
+        return True
 
 
     def New_AES(self, key: bytes | None = None) -> None:
