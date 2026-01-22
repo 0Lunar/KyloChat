@@ -4,3 +4,4 @@ from .Login import Login
 from .MessageTypes import MessageTypes
 from .Compression import Compressor, Decompressor
 from .tui import KyloChatApp
+from .Exceptions import SecurityError

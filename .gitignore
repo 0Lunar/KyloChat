@@ -1,3 +1,5 @@
 server/logs/
 __pycache__
 db_data/
+cert.pem
+fingers.pub

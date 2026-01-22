@@ -2,6 +2,8 @@ from enum import Enum
 
 
 class MessageTypes(Enum):
-    MESSAGE = 1
-    STATUS_CODE = 2
-    COMPRESSED_MSG = 3
+    SUCCESS = 0
+    FAILURE = 1
+    MESSAGE = 2
+    STATUS_CODE = 3
+    COMPRESSED_MSG = 4

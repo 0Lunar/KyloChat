@@ -30,6 +30,7 @@ class SettingsParser(object):
             self.max_conns = self.config['Security']['max_conns']
             self.max_conn_errors = self.config['Security']['max_conn_errors']
             self.sleep_on_full_conns = self.config['Security']['sleep_on_full_conns'] / 1000
+            self.certificate = self.config['Security']['certificate']
         except Exception:
             raise ParameterError("Missing parameter/s in toml config file")
     

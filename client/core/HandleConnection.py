@@ -1,4 +1,6 @@
 from core.CryptoHandler import CryptoHandler
+from core.Exceptions import SecurityError
+from core.MessageTypes import MessageTypes
 import socket
 
 
@@ -20,8 +22,8 @@ class SocketHandler(socket.socket):
             raise RuntimeError("Already connected")
 
         super().connect(address)
-        self.handshake()
         self.addr = address
+        self.handshake()
         self.connected = True
         
     
@@ -39,7 +41,28 @@ class SocketHandler(socket.socket):
         key_size = 2048
 
         try:
-            # Public Key RSA
+            # Certificate
+            
+            cert_len = int.from_bytes(conn.recv(2), 'little')
+            cert = conn.recv(cert_len)
+
+            self.crypto.CERT_Import(cert)
+            if not self.crypto.CERT_Check(self.addr[0]):
+                raise SecurityError("Invalid certificate")
+            
+            challenge = self.crypto.random_bytes(32)
+            conn.send(challenge)
+            
+            sign_len = int.from_bytes(conn.recv(2), 'little')
+            sign = conn.recv(sign_len)
+            
+            if not self.crypto.CERT_Verify(challenge, sign):
+                conn.send(MessageTypes.FAILURE.value.to_bytes(1, 'little'))
+                raise SecurityError("Challenge failed")
+        
+            conn.send(MessageTypes.SUCCESS.value.to_bytes(1, 'little'))
+            
+            # X25519
             self.crypto.New_ECC()
             pub = self.crypto.ECC_export_pub_key()
             

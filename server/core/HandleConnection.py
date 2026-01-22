@@ -1,4 +1,6 @@
 from core.CryptoHandler import CryptoHandler
+from core.MessageTypes import MessageTypes
+from core.SettingsParser import SettingsParser
 import socket
 
 
@@ -8,6 +10,7 @@ class SocketHandler(socket.socket):
         self.crypto = CryptoHandler()
         self.MIN_ENC_PAYLOAD = 48
         self.addr = None
+        self.settings = SettingsParser()
 
         if fileno:
             self.connected = True
@@ -44,6 +47,25 @@ class SocketHandler(socket.socket):
         conn.settimeout(10)
 
         try:
+            # Certificate
+            
+            self.crypto.Load_CERT(self.settings.certificate)
+            cert = self.crypto.Export_CERT_public_key()
+            cert_len = len(cert).to_bytes(2, 'little')
+                        
+            conn.send(cert_len + cert)
+            
+            challenge = conn.recv(32)
+            
+            sign = self.crypto.CERT_Sign(challenge)
+            sign_len = len(sign).to_bytes(2, 'little')
+            
+            conn.send(sign_len + sign)
+            code = int.from_bytes(conn.recv(1), 'little')
+            
+            if code == MessageTypes.FAILURE.value:
+                raise RuntimeError("Certificate sign failed")
+            
             # X25519
             
             self.crypto.New_ECC()
@@ -318,7 +340,7 @@ class SocketHandler(socket.socket):
         if not self.connected:
             raise RuntimeError("Not connected")
         
-        if super().send(b'\x00') <= 0:
+        if super().send(MessageTypes.SUCCESS.value.to_bytes(1, 'little')) <= 0:
             raise RuntimeError("Connection error")
     
 
@@ -330,5 +352,5 @@ class SocketHandler(socket.socket):
         if not self.connected:
             raise RuntimeError("Not connected")
         
-        if super().send(b'\x01') <= 0:
+        if super().send(MessageTypes.FAILURE.value.to_bytes(1, 'little')) <= 0:
             raise RuntimeError("Connection error")

@@ -12,6 +12,7 @@ services:
       CHAT_DB_USER: root
       CHAT_DB_PASSWD: root
       CHAT_DB_NAME: KyloChatDB
+      CERT_PASSWD: password-for-cert
     ports:
       - "53900:5000/tcp"
   
