@@ -38,7 +38,6 @@ class SocketHandler(socket.socket):
         
         conn = super()
         _timeout = conn.timeout
-        key_size = 2048
 
         try:
             # Certificate
@@ -49,24 +48,17 @@ class SocketHandler(socket.socket):
             self.crypto.CERT_Import(cert)
             if not self.crypto.CERT_Check(self.addr[0]):
                 raise SecurityError("Invalid certificate")
-            
-            challenge = self.crypto.random_bytes(32)
-            conn.send(challenge)
-            
-            sign_len = int.from_bytes(conn.recv(2), 'little')
-            sign = conn.recv(sign_len)
-            
-            if not self.crypto.CERT_Verify(challenge, sign):
-                conn.send(MessageTypes.FAILURE.value.to_bytes(1, 'little'))
-                raise SecurityError("Challenge failed")
-        
-            conn.send(MessageTypes.SUCCESS.value.to_bytes(1, 'little'))
-            
+                        
             # X25519
             self.crypto.New_ECC()
             pub = self.crypto.ECC_export_pub_key()
             
-            srv_pub = conn.recv(32)
+            srv_pub_len = int.from_bytes(conn.recv(2), 'little')
+            srv_pub = conn.recv(srv_pub_len)
+            srv_pub, sign = srv_pub[:32], srv_pub[32:]
+            
+            if not self.crypto.CERT_Verify(srv_pub, sign):
+                raise SecurityError("Invalid Signature for x25519 key")
             
             self.crypto.ECC_import_pub_bytes(srv_pub)
             

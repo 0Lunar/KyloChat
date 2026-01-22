@@ -42,7 +42,6 @@ class SocketHandler(socket.socket):
             raise RuntimeError("Connection closed")
 
         conn = super()
-        key_size = 2048
         _timeout = conn.timeout
         conn.settimeout(10)
 
@@ -55,26 +54,18 @@ class SocketHandler(socket.socket):
                         
             conn.send(cert_len + cert)
             
-            challenge = conn.recv(32)
-            
-            sign = self.crypto.CERT_Sign(challenge)
-            sign_len = len(sign).to_bytes(2, 'little')
-            
-            conn.send(sign_len + sign)
-            code = int.from_bytes(conn.recv(1), 'little')
-            
-            if code == MessageTypes.FAILURE.value:
-                raise RuntimeError("Certificate sign failed")
-            
             # X25519
             
             self.crypto.New_ECC()
             pub = self.crypto.ECC_export_pub_key()
+            sign = self.crypto.CERT_Sign(pub)
 
             if pub is None:
                 raise RuntimeError("Error exporting X25519 public key")
             
-            conn.send(pub)
+            payload = pub + sign
+            payload_len = len(payload).to_bytes(2, 'little')
+            conn.send(payload_len + payload)
             
             payload = conn.recv(32)
             
