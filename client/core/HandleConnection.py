@@ -43,6 +43,10 @@ class SocketHandler(socket.socket):
             # Certificate
             
             cert_len = int.from_bytes(conn.recv(2), 'little')
+            
+            if not cert_len:
+                raise RuntimeError("Connection refused")
+            
             cert = conn.recv(cert_len)
 
             self.crypto.CERT_Import(cert)
@@ -54,6 +58,10 @@ class SocketHandler(socket.socket):
             pub = self.crypto.ECC_export_pub_key()
             
             srv_pub_len = int.from_bytes(conn.recv(2), 'little')
+            
+            if not srv_pub_len:
+                raise RuntimeError("Invalid Server Key Length")
+            
             srv_pub = conn.recv(srv_pub_len)
             srv_pub, sign = srv_pub[:32], srv_pub[32:]
             
@@ -78,8 +86,11 @@ class SocketHandler(socket.socket):
             
             self.hs = True
 
+        except OSError:
+            conn.close()
+            raise Exception("Connection refused")
+
         except Exception as ex:
-            print(f"Handshake server error: {ex}")
             conn.close()
             raise Exception(ex)
         

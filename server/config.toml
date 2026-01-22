@@ -30,3 +30,5 @@ max_conns=0
 max_conn_errors=4
 sleep_on_full_conns=100
 certificate='cert.pem'
+whitelist=[]
+blacklist=[]

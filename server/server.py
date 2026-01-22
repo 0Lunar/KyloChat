@@ -22,14 +22,6 @@ logger = Logger(log_dir=settings.log_dir, log_file=settings.log_file, use_colors
 # Server Configuration
 IP = settings.ip
 PORT = settings.port
-MAX_LOGIN_ATTEMPTS = settings.login_attempts
-MAX_CONNECTIONS = settings.max_conns
-MAX_CONNECTION_ERRORS = settings.max_conn_errors
-SLEEP_MAX_CONNS = settings.sleep_on_full_conns
-SLOW_DOWN = settings.slow_down
-MAX_PAYLOAD_SIZE = settings.max_payload_size
-RATE_LIMIT = settings.rate_limit
-RATE_LIMIT_SLEEP = settings.rate_limit_sleep
 
 
 def send_status_code(conn: SocketHandler, code: int) -> None:
@@ -175,10 +167,10 @@ def handle_connection(session_id: str) -> None:
             
             logger.info(f"Received {len(payload)} bytes from {client.username} ({addr})")
                               
-            if msg_cnt > RATE_LIMIT:
+            if msg_cnt > settings.rate_limit:
                 logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
                 send_status_code(conn, 401)
-                sleep(RATE_LIMIT_SLEEP)
+                sleep(settings.rate_limit_sleep)
                 msg_cnt = 0
                 
                 continue
@@ -191,12 +183,12 @@ def handle_connection(session_id: str) -> None:
                 decomporessor = Decompressor()
                 payload = decomporessor.decompress(payload)
             
-            if len(payload) > MAX_PAYLOAD_SIZE:
+            if len(payload) > settings.max_payload_size:
                 logger.warning(f'Payload size exceeded from {addr}: {len(payload)} bytes')
                 send_status_code(conn, 400)
                 
-                if SLOW_DOWN > 0:
-                    sleep(SLOW_DOWN)
+                if settings.slow_down > 0:
+                    sleep(settings.slow_down)
                 
                 continue
             
@@ -204,8 +196,8 @@ def handle_connection(session_id: str) -> None:
                 logger.warning(f"Invalid payload size from {addr}: {len(payload)} bytes")
                 send_status_code(conn, 400)
                 
-                if SLOW_DOWN > 0:
-                    sleep(SLOW_DOWN)
+                if settings.slow_down > 0:
+                    sleep(settings.slow_down)
                 
                 continue
             
@@ -217,8 +209,8 @@ def handle_connection(session_id: str) -> None:
                 break
             
             if not validate_token(conn, token, addr):
-                if SLOW_DOWN > 0:
-                    sleep(SLOW_DOWN)
+                if settings.slow_down > 0:
+                    sleep(settings.slow_down)
                     
                 continue
             
@@ -248,13 +240,13 @@ def handle_connection(session_id: str) -> None:
             errors += 1
             logger.error(f"Error handling message from {client.username} ({addr}): {ex}")
             
-            if errors >= MAX_CONNECTION_ERRORS:
-                logger.critical(f"Maximum error limit ({MAX_CONNECTION_ERRORS}) exceeded for {client.username} ({addr})")
+            if errors >= settings.max_conn_errors:
+                logger.critical(f"Maximum error limit ({settings.max_conn_errors}) exceeded for {client.username} ({addr})")
                 handle_exit_command(session_id, token)
                 break
             
-        if SLOW_DOWN > 0:
-            sleep(SLOW_DOWN)
+        if settings.slow_down > 0:
+            sleep(settings.slow_down)
     
     logger.info(f"Connection handler terminated for {client.username} ({addr})")
 
@@ -274,13 +266,13 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         
         token = None
         
-        if MAX_LOGIN_ATTEMPTS > 0:
-            for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+        if settings.login_attempts > 0:
+            for attempt in range(1, settings.login_attempts + 1):
                 token = login_handler.get_login()
                 if token:
                     logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
                     break
-                logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
+                logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
 
             else:
                 logger.warning(f"Maximum login attempts exceeded for {addr}")
@@ -297,7 +289,7 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
                     logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
                     break
                 
-                logger.warning(f"Login attempt {attempt}/{MAX_LOGIN_ATTEMPTS} failed for {addr}")
+                logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
                 attempt += 1
 
         
@@ -375,13 +367,24 @@ def main() -> None:
         while True:
             try:
                 # If the server is full
-                if MAX_CONNECTIONS > 0 and hConn.count() >= MAX_CONNECTIONS:
-                    if SLEEP_MAX_CONNS > 0:
-                        sleep(SLEEP_MAX_CONNS)
+                if settings.max_conns > 0 and hConn.count() >= settings.max_conns:
+                    if settings.sleep_on_full_conns > 0:
+                        sleep(settings.sleep_on_full_conns)
                     continue
                 
                 # Accept new connection
                 conn, addr = server_socket.accept()
+                
+                if settings.white_list and addr[0] not in settings.white_list:
+                    logger.warning(f'Connection rejected from {addr}')
+                    conn.close()
+                    continue
+                
+                elif settings.black_list and addr[0] in settings.black_list:
+                    logger.warning(f'Connection rejected from {addr}')
+                    conn.close()
+                    continue
+                
                 logger.info(f"New connection from {addr}")
                                 
                 # Handle in new thread
