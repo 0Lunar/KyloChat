@@ -117,14 +117,15 @@ class CryptoHandler(object):
         if self.cert is None:
             raise RuntimeError("Invalid Certificate")
         
+        hostname = hostname.strip()
+        
         if not os.path.isfile(fingerprint_file):
             self.CERT_Save(hostname, fingerprint_file)
             return True
-
         
         with open(fingerprint_file, 'rt') as f:
             while (fingerprint := f.readline()) != '':
-                host = fingerprint.split(" ")[0]
+                host = fingerprint.split(" ")[0].strip()
                 
                 if host == hostname:
                     break
@@ -133,12 +134,12 @@ class CryptoHandler(object):
             self.CERT_Save(hostname, fingerprint_file)
             return True
         
-        local_cert = fingerprint[len(host) + 1 : ]
+        local_cert = fingerprint[len(host) + 1 : ].strip()
         
         cert = self.cert.public_bytes(
             encoding=serialization.Encoding.OpenSSH,
             format=serialization.PublicFormat.OpenSSH
-        ).decode()
+        ).decode().strip()
         
         if cert != local_cert:
             return False
