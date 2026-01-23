@@ -20,19 +20,19 @@ KyloChat is an encrypted, lightweight chat designed for maximum versatility and 
 KyloChat implements a hybrid cryptographic handshake and per-message authenticated encryption as follows:
 
 Handshake
-1. Server generates a fresh **RSA-2048** key pair on startup and shares the RSA public key with connecting clients.
-2. Client generates a random **AES-256** key (for *AES-256-GCM*) and encrypts that AES key using the server's RSA public key. The client sends the RSA-encrypted AES key to the server.
-3. Once the server decrypts the AES key, the client generates a 32-byte **HMAC** key (for *HMAC-SHA256*). The client sends the HMAC key encrypted with AES-256-GCM (using the previously exchanged AES key).
-4. After this exchange both client and server hold:
-   - AES-256-GCM key for message encryption.
-   - HMAC-SHA256 32-byte key for message authentication.
+- Certificate validation and key signing with **ECDSA secp256r1**
+- **TOFU** (_Trust On First Use_) and **OpenSSH-style** certificate **fingerprinting**
+- Key exchange with **x25519**
+- **HKDF** (Key Derivation) with SHA256
+- **AES-256_GCM** block cipher
+- Message signing with **HMAC-SHA256**
 
 Per-message format
 - Each message payload sent from client to server is:
-  - nonce = AES-256-GCM nonce (12 bytes)
-  - cipher = AES-256-GCM encrypt(token + message)
-  - tag = HMAC-SHA256(cipher)
-  - Final payload = nonce || cipher || tag
+  - **nonce** = AES-256-GCM nonce (12 bytes)
+  - **cipher** = AES-256-GCM encrypt(token + message)
+  - **tag** = HMAC-SHA256(cipher)
+  - **Final payload** = nonce || cipher || tag
 - The HMAC covers the ciphertext to provide integrity and authenticity.
 
 ## Privacy
