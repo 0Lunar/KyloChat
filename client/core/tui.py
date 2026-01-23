@@ -260,7 +260,7 @@ class MenuScreen(ModalScreen):
     """
     
     BINDINGS = [
-        Binding("escape", "back", "Back", show=True),
+        Binding("escape", "abort_key", "Back", show=True),
     ]
     
     def __init__(self, compression: bool = False) -> None:
@@ -274,6 +274,9 @@ class MenuScreen(ModalScreen):
             "Exit chat",
             "Abort"
         )
+        
+    def action_abort_key(self):
+        self.dismiss("Abort")
         
     def on_option_list_option_selected(self, event):
         self.dismiss(event.option.prompt)
