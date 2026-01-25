@@ -286,6 +286,7 @@ class MenuScreen(ModalScreen):
             "Clear chat",
             "Enable compression" if not self.compression else "Disable compression",
             "Exit chat",
+            "Logout",
             "Abort"
         )
         
@@ -411,6 +412,11 @@ class ChatScreen(Screen):
             self.compression = False
             
         elif result == "Exit chat":
+            self.action_quit_chat()
+            
+        elif result == "Logout":
+            login = Login(self.conn)
+            login.removeToken()
             self.action_quit_chat()
     
     

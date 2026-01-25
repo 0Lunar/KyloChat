@@ -64,6 +64,30 @@ class Login(object):
         return None
     
     
+    def removeToken(self, tokenFile: str = ".cache/token") -> None:
+        if not os.path.isfile(tokenFile):
+            return
+        
+        with open(tokenFile, 'rt') as f:
+            data = f.read().strip().split("\n")
+        
+        for line in data:
+            host = line.split(" ")[0]
+            
+            if host == self.conn.addr[0]:
+                data.remove(line)
+                break
+            
+        lines = '\n'.join(data).strip()
+        
+        if not lines:
+            open(tokenFile, "wt").close()
+        
+        else:
+            with open(tokenFile, "wt") as f:
+                f.write(lines)
+    
+    
     def saveToken(self, username: str, token: str, tokenFile: str = ".cache/token") -> None:
         if not bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', token)):
             return
