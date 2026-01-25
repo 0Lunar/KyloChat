@@ -102,9 +102,22 @@ class ConnectionScreen(Screen):
         
             ip_input.disabled = False
             port_input.disabled = False
-        
-            # Switch to login screen
-            self.app.push_screen(LoginScreen(conn))
+            
+            login = Login(conn)
+            if not (token := login.checkCache()):
+                # Switch to login screen
+                self.app.push_screen(LoginScreen(conn))
+            
+            else:
+                tk = login.loging_cache()
+                
+                if tk:
+                    username, token = tk
+                    self.app.push_screen(ChatScreen(conn, token, username))
+                
+                else:
+                    self.app.push_screen(LoginScreen(conn))
+            
         except Exception as ex:
             ip_input.disabled = False
             port_input.disabled = False
@@ -192,6 +205,7 @@ class LoginScreen(Screen):
                     raise TimeoutError("Authentication timeout - server not responding")
                 
                 if token:
+                    login.saveToken(username, token)
                     self.app.call_from_thread(self.on_login_success, token, username)
                 else:
                     self.app.call_from_thread(self.on_login_failed, "Invalid username or password")

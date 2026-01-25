@@ -3,3 +3,4 @@ __pycache__
 db_data/
 cert.pem
 fingers.pub
+.cache

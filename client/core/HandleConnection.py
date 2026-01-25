@@ -9,7 +9,7 @@ class SocketHandler(socket.socket):
         super().__init__(family, type, proto, fileno)
         self.crypto = CryptoHandler()
         self.MIN_ENC_PAYLOAD = 48
-        self.addr = None
+        self.addr = ('0.0.0.0', 0)
 
         if fileno:
             self.connected = True
@@ -51,21 +51,28 @@ class SocketHandler(socket.socket):
 
             self.crypto.CERT_Import(cert)
             if not self.crypto.CERT_Check(self.addr[0]):
+                conn.close()
                 raise SecurityError("Invalid certificate")
                         
             # X25519
             self.crypto.New_ECC()
             pub = self.crypto.ECC_export_pub_key()
             
+            if pub is None:
+                conn.close()
+                raise SecurityError("Error exporting x25519 key")
+            
             srv_pub_len = int.from_bytes(conn.recv(2), 'little')
             
             if not srv_pub_len:
+                conn.close()
                 raise RuntimeError("Invalid Server Key Length")
             
             srv_pub = conn.recv(srv_pub_len)
             srv_pub, sign = srv_pub[:32], srv_pub[32:]
             
             if not self.crypto.CERT_Verify(srv_pub, sign):
+                conn.close()
                 raise SecurityError("Invalid Signature for x25519 key")
             
             self.crypto.ECC_import_pub_bytes(srv_pub)

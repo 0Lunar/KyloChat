@@ -42,7 +42,6 @@ class SocketHandler(socket.socket):
             raise RuntimeError("Connection closed")
 
         conn = super()
-        _timeout = conn.timeout
         conn.settimeout(10)
 
         try:
@@ -58,9 +57,15 @@ class SocketHandler(socket.socket):
             
             self.crypto.New_ECC()
             pub = self.crypto.ECC_export_pub_key()
+            
+            if pub is None:
+                conn.close()
+                raise RuntimeError("Error exporting x25519 key")
+            
             sign = self.crypto.CERT_Sign(pub)
 
             if pub is None:
+                conn.close()
                 raise RuntimeError("Error exporting X25519 public key")
             
             payload = pub + sign
@@ -80,10 +85,12 @@ class SocketHandler(socket.socket):
             while len(enc) < 92:
                 chunk = conn.recv(92 - len(enc))
                 if not chunk:
+                    conn.close()
                     raise RuntimeError("Failed to receive complete HMAC key")
                 enc += chunk
 
             if len(enc) != 92:
+                conn.close()
                 raise ValueError(f"Invalid HMAC key length: {len(enc)} != 64")
 
             nonce, aad, encrypted_hmac_key = enc[:12], enc[12:28], enc[28:]
@@ -92,6 +99,7 @@ class SocketHandler(socket.socket):
             hmac_key = self.crypto.AES_Decrypt(nonce, encrypted_hmac_key, aad)
 
             if hmac_key is None or len(hmac_key) != 32:
+                conn.close()
                 raise ValueError("Invalid HMAC key decrypted")
 
             self.crypto.New_HMAC(key=hmac_key)
@@ -325,7 +333,7 @@ class SocketHandler(socket.socket):
     
     def success_code(self) -> None:
         """
-        Send the success code (not encrypted) b'\x00'
+        Send the success code (not encrypted) 0x00
         """
         
         if not self.connected:

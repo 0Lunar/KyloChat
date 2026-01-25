@@ -100,9 +100,16 @@ class CryptoHandler(object):
             return False
         
         
-    def CERT_Save(self, hostname: str, fingerprint_file: str = "fingers.pub") -> None:
+    def CERT_Save(self, hostname: str, fingerprint_file: str = ".cache/fingers.pub") -> None:
         if self.cert is None:
             raise RuntimeError("Invalid Certificate")
+        
+        if fingerprint_file.count("/"):
+            fingerprint_dir = os.path.abspath('/'.join(fingerprint_file.split("/")[:-1]))
+        
+            if not os.path.isdir(fingerprint_dir):
+                os.mkdir(fingerprint_dir)
+            
         
         crt = self.cert.public_bytes(
             encoding=serialization.Encoding.OpenSSH,
@@ -113,7 +120,7 @@ class CryptoHandler(object):
             f.write(f'{hostname} {crt}\n')
     
     
-    def CERT_Check(self, hostname: str, fingerprint_file: str = "fingers.pub") -> bool:
+    def CERT_Check(self, hostname: str, fingerprint_file: str = ".cache/fingers.pub") -> bool:
         if self.cert is None:
             raise RuntimeError("Invalid Certificate")
         
