@@ -104,7 +104,7 @@ class ConnectionScreen(Screen):
             port_input.disabled = False
             
             login = Login(conn)
-            if not (token := login.checkCache()):
+            if (token := login.checkCache()) == False:
                 # Switch to login screen
                 self.app.push_screen(LoginScreen(conn))
             

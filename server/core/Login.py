@@ -68,8 +68,9 @@ class Login(object):
         elif msg_type == MessageTypes.CACHED_LOGIN.value:
             try:
                 token = self.conn.recv_short_bytes().decode(encoding='utf-8', errors='strict')
+                user = self.db.TokenToUsername(token)
                 
-                if self.db.existToken(token):
+                if self.db.existToken(token) and not self.db.checkBan(user, silent=True):
                     self.conn.success_code()
                     
                     username = self.db.TokenToUsername(token)
@@ -78,6 +79,9 @@ class Login(object):
                     self.logger.info(f"Login success for {self.conn.addr}  ->  {username}")
                     
                     return token
+                
+                self.conn.fail_code()
+                return False
                 
             except Exception as ex:
                 self.logger.error(f"Connection error for {self.conn.addr}: {ex}")
