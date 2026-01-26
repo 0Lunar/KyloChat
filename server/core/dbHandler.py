@@ -29,7 +29,21 @@ class DBHandler(object):
             bool : `True` if connected, otherwise `False`
         """
         return self.db.is_connected()
+    
+    
+    def reconnect(self) -> bool:
+        try:
+            self.db.reconnect()
+            return True
+        except:
+            return False
         
+        
+    def checkDB(self) -> None:
+        if not self.isConnected():
+            if not self.reconnect():
+                raise RuntimeError("Database not connected")
+            
 
     def checkUser(self, username: str | int) -> bool:
         """
@@ -41,6 +55,7 @@ class DBHandler(object):
         Returns:
             bool : `True` if the username exists, otherwise `False`
         """
+        self.checkDB()    
         cursor = self.db.cursor()
         
         if type(username) is str:
@@ -74,6 +89,7 @@ class DBHandler(object):
         Returns:
             user_id : An `int` representing the user's ID in the database
         """
+        self.checkDB()
         cursor = self.db.cursor()
         
         cursor.execute(
@@ -102,6 +118,8 @@ class DBHandler(object):
         Returns:
             bool : `True` if username and password are correct, otherwise `False`
         """
+        self.checkDB()
+        
         if not self.checkUser(username):
             return False
         
@@ -141,6 +159,8 @@ class DBHandler(object):
         Returns:
             bool : `True` if user is banned, otherwise `False`
         """
+        self.checkDB()
+        
         if not self.checkUser(username):
             return False
         
@@ -170,6 +190,8 @@ class DBHandler(object):
 
 
     def isAdmin(self, user: str | int) -> bool:
+        self.checkDB()
+        
         if not self.checkUser(user):
             return False
         
@@ -206,6 +228,8 @@ class DBHandler(object):
         Returns:
             bool : `True` if the token exists, otherwise `False`
         """
+        self.checkDB()
+        
         cursor = self.db.cursor()
         cursor.execute(
             "SELECT 1 FROM tokens WHERE tokens.token=%s LIMIT 1",
@@ -231,6 +255,7 @@ class DBHandler(object):
         Returns:
             bool : `True` if the token is expired, otherwise `False`
         """
+        self.checkDB()
         cursor = self.db.cursor()
         
         cursor.execute(
@@ -271,6 +296,7 @@ class DBHandler(object):
         Returns:
             bool : `True` if the user is banned, otherwise `False`
         """
+        self.checkDB()
         cursor = self.db.cursor()
         
         cursor.execute(
@@ -297,7 +323,7 @@ class DBHandler(object):
         Returns:
             `True` if the token is admin, otherwise `False`
         """
-        
+        self.checkDB()
         if not self.existToken(token):
             return False
     
@@ -318,6 +344,7 @@ class DBHandler(object):
     
     
     def TokenToUsername(self, token: str) -> str:
+        self.checkDB()
         if not self.existToken(token):
             return ""
         
@@ -346,6 +373,7 @@ class DBHandler(object):
         Returns:
             token : A `string` representing the token
         """
+        self.checkDB()
         
         if not self.checkUser(user):
             return ""
@@ -375,6 +403,8 @@ class DBHandler(object):
         Returns:
             bool : `True` if the user is banned, otherwise `False`
         """
+        
+        self.checkDB()
         
         if not self.checkUser(user_id):
             return False
@@ -407,6 +437,7 @@ class DBHandler(object):
         Returns:
             bool : `True` if the user is unbanned, otherwise `False`
         """
+        self.checkDB()
         
         if not self.checkUser(user_id):
             return False
@@ -430,6 +461,8 @@ class DBHandler(object):
 
 
     def changePasswd(self, user_id: int, newPasswd: str) -> bool:
+        self.checkDB()
+        
         if not self.checkUser(user_id):
             return False
         
@@ -466,6 +499,7 @@ class DBHandler(object):
         Returns:
             out : `True` on success, `False` on failure
         """
+        self.checkDB()
         
         if not username:
             if silent:
@@ -522,6 +556,7 @@ class DBHandler(object):
         Returns:
             out : list[Tokens] on success, None on failure
         """
+        self.checkDB()
         
         if limit < 1:
             return None
@@ -548,6 +583,7 @@ class DBHandler(object):
         Returns:
             out : `True` on success, `False` on failure
         """
+        self.checkDB()
         
         if not token or len(token) != 36:
             return False
@@ -577,6 +613,7 @@ class DBHandler(object):
         Returns:
             out : `True` on success, `False` on failure
         """
+        self.checkDB()
         
         if not token or len(token) != 36:
             return False
@@ -594,3 +631,17 @@ class DBHandler(object):
         cursor.close()
         
         return True
+    
+    
+    def showUsers(self) -> (list[str] | None):
+        self.checkDB()
+        
+        cursor = self.db.cursor()
+        
+        cursor.execute("SELECT users.UserID, users.username, users.banned FROM users")
+        users = cursor.fetchall()
+        
+        if not users:
+            return None
+        
+        return users

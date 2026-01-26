@@ -16,6 +16,7 @@ class CommandHandler(object):
             "rvktk":    (1, self.revokeToken),   # Revoke a token : /rvktk <token : str>
             "rmtk":     (1, self.removeToken),   # Remove permanently the token : /rmtk <token : str>
             "showtk":   (1, self.showTokens),    # Show the tokens in the database : /showtk <limit : int>
+            "lsusers":  (0, self.list_users),    # Show all the users in the database : /lsusers
         }
         
         self._db = dbHandler
@@ -40,6 +41,7 @@ b'''
 /rvktk          Revoke a token:  /rvktk <token : str>
 /rmtk           Remove permanently the token : /rmtk <token : str>
 /showtk         Show the tokens in the database : /showtk <limit : int>
+/lsusers        Show all the users in the database : /lsusers
 '''
     
 
@@ -75,94 +77,91 @@ b'''
     
     
     def user_id(self, username: str) -> bytes:
-        if not self._db.isConnected():
-            return b'User not found'
-        
-        return f'UserID: {self._db.userID(username)}'.encode(encoding='utf-8', errors='strict')
+        try:
+            return f'UserID: {self._db.userID(username)}'.encode(encoding='utf-8', errors='strict')
+        except:
+            return b'Database error'
     
     
-    def banUser(self, user_id: int) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def banUser(self, user_id: int) -> bytes:        
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
                 return b'Invalid UserID'
     
-        if self._db.banUser(user_id):
-            return b'User Banned'
-        
-        return f'Error banning {user_id}'.encode(encoding='utf-8', errors='strict')
+        try:
+            if self._db.banUser(user_id):
+                return b'User Banned'
+
+            return f'Error banning {user_id}'.encode(encoding='utf-8', errors='strict')
+        except:
+            return b'Database error'
     
     
-    def unbanUser(self, user_id: int) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def unbanUser(self, user_id: int) -> bytes:        
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
                 return b'Invalid UserID'
         
-        if self._db.unbanUser(user_id):
-            return b'User Unbanned'
-        
-        return f'Error unbanning {user_id}'.encode(encoding='utf_8', errors='strict')
+        try:
+            if self._db.unbanUser(user_id):
+                return b'User Unbanned'
+
+            return f'Error unbanning {user_id}'.encode(encoding='utf_8', errors='strict')
+        except:
+            return b'Database error'
     
     
-    def isAdmin(self, user_id: int) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def isAdmin(self, user_id: int) -> bytes:        
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
                 return b'Invalid UserID'
         
-        return b'True' if self._db.isAdmin(user_id) else b'False'
+        try:
+            return b'True' if self._db.isAdmin(user_id) else b'False'
+        except:
+            return b'Database error'
     
     
-    def isBanned(self, user_id: int) -> (bool | bytes):
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def isBanned(self, user_id: int) -> (bool | bytes):        
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
                 return b'Invalid UserID'
         
-        return b'True' if self._db.checkBan(user_id, silent=True) else b'False'
+        try:
+            return b'True' if self._db.checkBan(user_id, silent=True) else b'False'
+        except:
+            return b'Database error'
     
     
-    def changePasswd(self, user_id: int, passwd: str) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def changePasswd(self, user_id: int, passwd: str) -> bytes:        
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
             except:
                 return b'Invalid UserID'
         
-        if self._db.changePasswd(user_id, passwd):
-            return b'Password Changed'
-    
-        return f'Error changing password for {user_id}'.encode(encoding='utf-8', errors='strict')
+        try:
+            if self._db.changePasswd(user_id, passwd):
+                return b'Password Changed'
+
+            return f'Error changing password for {user_id}'.encode(encoding='utf-8', errors='strict')
+        except:
+            return b'Database error'
     
     
     def lsip(self) -> tuple:
         return tuple(self._cn.get_all_hosts())
     
     
-    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> (bool | bytes):
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
+    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> (bool | bytes):        
         if not email or email.lower() == 'none':
             email = None
         
@@ -179,40 +178,40 @@ b'''
             else:
                 admin = False
         
-        return b'User created successfully' if self._db.makeUser(username, password, email, admin, True) \
-            else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode(encoding='utf-8', errors='strict')
+        try:
+            return b'User created successfully' if self._db.makeUser(username, password, email, admin, True) \
+                else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode(encoding='utf-8', errors='strict')
+        except:
+            return b'Database error'
     
     
     def revokeToken(self, token: str) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
-        if not self._db.existToken(token):
-            return b'Token not found'
-        
-        if self._db.revokeToken(token):
-            return b'Token revoked'
-        
-        return b'Error revoking the token'
+        try:
+            if not self._db.existToken(token):
+                return b'Token not found'
+
+            if self._db.revokeToken(token):
+                return b'Token revoked'
+
+            return b'Error revoking the token'
+        except:
+            return b'Database error'
     
     
     def removeToken(self, token: str) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
-        if not self._db.existToken(token):
-            return b'Token not found'
-        
-        if self._db.removeToken(token):
-            return b'Token permanently removed'
-        
-        return b'Error removing the token'
+        try:
+            if not self._db.existToken(token):
+                return b'Token not found'
+
+            if self._db.removeToken(token):
+                return b'Token permanently removed'
+
+            return b'Error removing the token'
+        except:
+            return b'Database error'
     
     
     def showTokens(self, limit: int) -> bytes:
-        if not self._db.isConnected():
-            return b'Database not connected'
-        
         if type(limit) is not int:
             try:
                 limit = int(limit)
@@ -222,15 +221,35 @@ b'''
         if limit < 1:
             return b'Invalid limit'
         
-        tokens = self._db.showTokens(limit)
-        
-        if tokens:
-            output = b'\n'
+        try:
+            tokens = self._db.showTokens(limit)
+
+            if tokens:
+                output = b'\n'
+
+                for token in tokens:
+                    tk, user, userid = token[0], token[1], token[2]
+                    output += f'Token: {tk}\nUser: {user}\nUserID: {userid}\n\n'.encode(encoding='utf-8', errors='strict')
+
+                return output[:-2]
+
+            return b'No token found'
+        except:
+            return b'Database error'
+    
+    
+    def list_users(self) -> bytes:
+        try:
+            users = self._db.showUsers()
             
-            for token in tokens:
-                tk, user, userid = token[0], token[1], token[2]
-                output += f'Token: {tk}\nUser: {user}\nUserID: {userid}\n\n'.encode(encoding='utf-8', errors='strict')
-                
-            return output[:-2]
-        
-        return b'No token found'
+            if not users:
+                return b'Users not found'
+            
+            out = b'\n'
+            
+            for user in users:
+                out += f'ID: {user[0]}\nUsername: {user[1]}\nBanned: {user[2]}\n\n'.encode(encoding='utf-8', errors='strict')
+            
+            return out
+        except:
+            return b'Database error'
