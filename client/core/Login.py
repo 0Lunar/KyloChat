@@ -98,7 +98,12 @@ class Login(object):
             if not os.path.isdir(tokenFile_dir):
                 os.mkdir(tokenFile_dir)
         
-        with open(tokenFile, 'wt') as f:
+        if os.path.isfile(tokenFile):
+            mode = "at"
+        else:
+            mode = "wt"
+        
+        with open(tokenFile, mode) as f:
             f.write(f'{self.conn.addr[0]} {username} {token}\n')
             
             
