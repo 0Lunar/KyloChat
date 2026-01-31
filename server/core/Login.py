@@ -26,7 +26,7 @@ class Login(object):
             except Exception as ex:
                 self.logger.error(f"Connection error for {self.conn.addr}: {ex}")
                 self.conn.fail_code()
-                return False
+                raise RuntimeError("Connection error")
 
 
             if not self.db.checkUser(username) or self.db.checkBan(username):
@@ -44,7 +44,7 @@ class Login(object):
             except Exception as ex:
                 self.logger.error(f"Connection error for {self.conn.addr}: {ex}")
                 self.conn.fail_code()
-                return False
+                raise RuntimeError("Connection error")
 
             # Compare Credentials With Database
 
@@ -86,7 +86,7 @@ class Login(object):
             except Exception as ex:
                 self.logger.error(f"Connection error for {self.conn.addr}: {ex}")
                 self.conn.fail_code()
-                return False
+                raise RuntimeError("Connection error")
     
         else:
             return False

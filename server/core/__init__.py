@@ -10,3 +10,4 @@ from .MessageTypes import MessageTypes
 from .SettingsParser import SettingsParser
 from .Exceptions import EncodingError, DecodingError, ClientDisconnected, ServerError, ParameterError
 from .Compression import Compressor, Decompressor
+from .NetworkBan import NetworkBan

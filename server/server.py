@@ -1,8 +1,8 @@
 from core import SocketHandler, Login, DBHandler, CommandHandler, Logger, MessageTypes
-from core import ConnHandler, ClientInfo
+from core import ConnHandler
 from core import SettingsParser
-from core import ServerError, ClientDisconnected
 from core import Decompressor
+from core import NetworkBan
 import threading
 import socket
 from colorama import Fore
@@ -13,6 +13,7 @@ from typing import Optional
 
 # Global handlers
 settings = SettingsParser()
+netBan = NetworkBan()
 hConn = ConnHandler()
 hDb = DBHandler()
 hCommand = CommandHandler(hDb, hConn)
@@ -214,7 +215,7 @@ def handle_connection(session_id: str) -> None:
                     
                 continue
             
-            #logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
+            logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
             
             message = data.decode(encoding='utf-8', errors='ignore')
             
@@ -268,14 +269,34 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         
         if settings.login_attempts > 0:
             for attempt in range(1, settings.login_attempts + 1):
-                token = login_handler.get_login()
+                try:
+                    token = login_handler.get_login()
+                except:
+                    logger.warning(f'Connection closed from {addr[0]}')
+                    conn.close()
+                    return
+                    
                 if token:
                     logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
+                    netBan.removeLogin(addr[0])
                     break
+                
                 logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
+                netBan.addLogin(addr[0], attempt)
+                
+                if netBan.countLogin(addr[0]) >= settings.login_attempts:
+                    netBan.newBan(addr[0])
+                    netBan.removeLogin(addr[0])
+                    logger.warning(f"Maximum login attempts exceeded for {addr}")
+                    conn.close()
+                    return
 
             else:
                 logger.warning(f"Maximum login attempts exceeded for {addr}")
+                
+                if settings.ban_on_fail:
+                    netBan.newBan(addr[0])
+                
                 conn.close()
                 return
         
@@ -283,13 +304,18 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
             attempt = 1
             
             while True:
-                token = login_handler.get_login()
+                try:
+                    token = login_handler.get_login()
+                except RuntimeError:
+                    logger.warning(f'Connection closed from {addr[0]}')
+                    conn.close()
+                    return
                 
                 if token:
                     logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
                     break
                 
-                logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
+                logger.warning(f"Login attempt {attempt} failed for {addr}")
                 attempt += 1
 
         
@@ -376,12 +402,17 @@ def main() -> None:
                 conn, addr = server_socket.accept()
                 
                 if settings.white_list and addr[0] not in settings.white_list:
-                    logger.warning(f'Connection rejected from {addr}')
+                    logger.warning(f'Connection rejected from {addr}: not in whitelist')
                     conn.close()
                     continue
                 
                 elif settings.black_list and addr[0] in settings.black_list:
-                    logger.warning(f'Connection rejected from {addr}')
+                    logger.warning(f'Connection rejected from {addr}: blacklist')
+                    conn.close()
+                    continue
+                
+                elif netBan.isBanned(addr[0]):
+                    logger.warning(f'Connection rejected from {addr}: network banned')
                     conn.close()
                     continue
                 

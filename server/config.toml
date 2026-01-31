@@ -17,6 +17,8 @@ log_file='chatserver.log'
 [Authentication]
 
 login_attempts=4
+ban_on_fail=true
+ban_time=10
 
 
 # Configure Security

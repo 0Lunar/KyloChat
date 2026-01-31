@@ -23,6 +23,8 @@ class SettingsParser(object):
             self.log_dir = self.config['Logging']['log_dir']
             self.log_file = self.config['Logging']['log_file']
             self.login_attempts = self.config['Authentication']['login_attempts']
+            self.ban_on_fail = self.config['Authentication']['ban_on_fail']
+            self.ban_time = self.config['Authentication']['ban_time']
             self.rate_limit = self.config['Security']['rate_limit']
             self.rate_limit_sleep = self.config['Security']['rate_limit_sleep'] / 1000
             self.max_payload_size = self.config['Security']['max_payload_size']
