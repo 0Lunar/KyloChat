@@ -21,7 +21,7 @@ class ConnectionScreen(Screen):
     
     #connection_box {
         width: 60;
-        height: 18;
+        height: 16;
         border: thick $primary;
         padding: 1 2;
     }
@@ -53,7 +53,6 @@ class ConnectionScreen(Screen):
             yield Input(placeholder="127.0.0.1", value="127.0.0.1", id="ip_input")
             yield Static("Port:", classes="input_label")
             yield Input(placeholder="5000", value="5000", id="port_input")
-            yield Static("", id="error_msg")
         yield Footer()
     
     def validate_ip(self, ip: str) -> bool:
@@ -79,18 +78,17 @@ class ConnectionScreen(Screen):
         """Handle input submission"""
         ip_input = self.query_one("#ip_input", Input)
         port_input = self.query_one("#port_input", Input)
-        error_msg = self.query_one("#error_msg", Static)
         
         ip = ip_input.value
         port = port_input.value
         
         # Validate
         if not self.validate_ip(ip):
-            error_msg.update("❌ Invalid IP address format")
+            self.notify("❌ Invalid IP address format", severity='error')
             return
         
         if not self.validate_port(port):
-            error_msg.update("❌ Invalid port (1-65535)")
+            self.notify("❌ Invalid port (1-65535)", severity='error')
             return
         
         ip_input.disabled = True
@@ -121,7 +119,7 @@ class ConnectionScreen(Screen):
         except Exception as ex:
             ip_input.disabled = False
             port_input.disabled = False
-            error_msg.update(f"❌ Connection failed: {ex}")
+            self.notify(f"❌ Connection failed: {ex}", severity='error')
 
 
 class LoginScreen(Screen):
@@ -183,7 +181,7 @@ class LoginScreen(Screen):
         password = password_input.value.strip()
         
         if not username or not password:
-            status_msg.update("[llow]⚠ Please fill all fields[/yellow]")
+            self.notify("[yellow]⚠ Please fill all fields[/yellow]", severity='warning')
             return
         
         # Disable inputs during connection
@@ -250,8 +248,7 @@ class LoginScreen(Screen):
     
     def on_login_failed(self, error: str, perm: bool = False):
         """Called when login fails"""
-        status_msg = self.query_one("#status_msg", Static)
-        status_msg.update(f"[red]❌ {error}[/red]")
+        self.notify(f"[red]❌ {error}[/red]", severity='error')
         
         username_input = self.query_one("#username_input", Input)
         password_input = self.query_one("#password_input", Input)
@@ -460,10 +457,10 @@ class ChatScreen(Screen):
             return code in {100, 200}
         
         except queue.Empty:
-            self.add_message("System", "Server response timeout", is_system=True)
+            self.notify("Server response timeout", severity='error')
             return False
         except Exception as e:
-            self.add_message("System", f"Failed to send: {e}", is_system=True)
+            self.notify(f"Failed to send: {e}", severity='error')
             return False
     
     def handle_server_error(self, code: int):
@@ -474,7 +471,7 @@ class ChatScreen(Screen):
             403: "Forbidden - No permission",
             500: "Internal Server Error"
         }
-        self.add_message("System", f"Error: {errors.get(code, f'Unknown error ({code})')}", is_system=True)
+        self.notify(f"Error: {errors.get(code, f'Unknown error ({code})')}", severity='error')
             
     def receive_messages_thread(self):
         """Thread to receive messages from server"""
@@ -495,7 +492,7 @@ class ChatScreen(Screen):
             
             except Exception as e:
                 if self.running:
-                    self.app.call_from_thread(self.add_message, "System", f"Connection error: {e}", is_system=True)
+                    self.app.notify(f"Connection error: {e}", severity='error')
                 break
     
     def action_quit_chat(self):

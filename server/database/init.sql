@@ -37,5 +37,5 @@ INSERT INTO credentials(user, password) VALUES((SELECT users.UserID FROM users W
 
 -- - SETUP FOR TEST USER (PASSWORD: 'test')
 
-INSERT INTO users(username, email, admin) VALUES("test", "test@test.test", false);
-INSERT INTO credentials(user, password) VALUES((SELECT users.UserID FROM users WHERE users.username='test'), "$2b$12$eZHlQMeHQ0uN1Sdat8ktWO2mkDlgqihUlGzHlNTcKCV7FHy2YqZ5m");
+INSERT INTO users(username, email, admin) VALUES("guest", "<guest_mail>", false);
+INSERT INTO credentials(user, password) VALUES((SELECT users.UserID FROM users WHERE users.username='guest'), "$2b$12$hiYpVdw0eE9m7RBPPhERc.9KdxwBJsMpX0rijqbnaqPcrgTUkkN72");
