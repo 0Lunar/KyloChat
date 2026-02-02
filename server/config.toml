@@ -24,9 +24,9 @@ ban_time=10
 # Configure Security
 [Security]
 
-rate_limit=10
+rate_limit=5
 rate_limit_sleep=5000
-max_payload_size=500
+max_payload_size=250
 slow_down=0
 max_conns=0
 max_conn_errors=4

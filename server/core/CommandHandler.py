@@ -79,8 +79,8 @@ b'''
     def user_id(self, username: str) -> bytes:
         try:
             return f'UserID: {self._db.userID(username)}'.encode(encoding='utf-8', errors='strict')
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def banUser(self, user_id: int) -> bytes:        
@@ -95,8 +95,8 @@ b'''
                 return b'User Banned'
 
             return f'Error banning {user_id}'.encode(encoding='utf-8', errors='strict')
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def unbanUser(self, user_id: int) -> bytes:        
@@ -111,8 +111,8 @@ b'''
                 return b'User Unbanned'
 
             return f'Error unbanning {user_id}'.encode(encoding='utf_8', errors='strict')
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def isAdmin(self, user_id: int) -> bytes:        
@@ -124,8 +124,8 @@ b'''
         
         try:
             return b'True' if self._db.isAdmin(user_id) else b'False'
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def isBanned(self, user_id: int) -> (bool | bytes):        
@@ -137,8 +137,8 @@ b'''
         
         try:
             return b'True' if self._db.checkBan(user_id, silent=True) else b'False'
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def changePasswd(self, user_id: int, passwd: str) -> bytes:        
@@ -153,8 +153,8 @@ b'''
                 return b'Password Changed'
 
             return f'Error changing password for {user_id}'.encode(encoding='utf-8', errors='strict')
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def lsip(self) -> tuple:
@@ -181,8 +181,8 @@ b'''
         try:
             return b'User created successfully' if self._db.makeUser(username, password, email, admin, True) \
                 else f'Error creating: ({username}, {'*' * len(password)}, {email}, Admin={admin})'.encode(encoding='utf-8', errors='strict')
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def revokeToken(self, token: str) -> bytes:
@@ -194,8 +194,8 @@ b'''
                 return b'Token revoked'
 
             return b'Error revoking the token'
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def removeToken(self, token: str) -> bytes:
@@ -207,8 +207,8 @@ b'''
                 return b'Token permanently removed'
 
             return b'Error removing the token'
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def showTokens(self, limit: int) -> bytes:
@@ -234,8 +234,8 @@ b'''
                 return output[:-2]
 
             return b'No token found'
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
     def list_users(self) -> bytes:
@@ -251,5 +251,5 @@ b'''
                 out += f'ID: {user[0]}\nUsername: {user[1]}\nBanned: {user[2]}\n\n'.encode(encoding='utf-8', errors='strict')
             
             return out
-        except:
-            return b'Database error'
+        except Exception as ex:
+            return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
