@@ -44,6 +44,10 @@ class CryptoHandler(object):
     @staticmethod
     def random_bytes(length: int) -> bytes:
         return token_bytes(length)
+    
+    @staticmethod
+    def Generate_Bcrypt_Salt() -> bytes:
+        return bcrypt.gensalt()
 
 
     def New_ECC(self) -> None:
