@@ -22,15 +22,15 @@ KyloChat implements a hybrid cryptographic handshake and per-message authenticat
 Handshake
 - Certificate validation and key signing with **ECDSA secp256r1**
 - **TOFU** (_Trust On First Use_) and **OpenSSH-style** certificate **fingerprinting**
-- Key exchange with **x25519**
+- Key exchange with **x25519 - ECDH**
 - **HKDF** (Key Derivation) with SHA256
-- **AES-256_GCM** block cipher
+- **AES256-GCM** block cipher
 - Message signing with **HMAC-SHA256**
 
 Per-message format
 - Each message payload sent from client to server is:
-  - **nonce** = AES-256-GCM nonce (12 bytes)
-  - **cipher** = AES-256-GCM encrypt(token + message)
+  - **nonce** = AES256-GCM nonce (12 bytes)
+  - **cipher** = AES256-GCM encrypt(token + message)
   - **tag** = HMAC-SHA256(cipher)
   - **Final payload** = nonce || cipher || tag
 - The HMAC covers the ciphertext to provide integrity and authenticity.
@@ -41,7 +41,7 @@ Per-message format
   - User records (registered users)
   - IP addresses observed at login
   - The size of each message sent by each user
-  - Example: "27 bytes received from user1 ('34.26.87.21', 12734)"
+  - Example: `27 bytes received from user1 ('34.26.87.21', 12734)`
 - No message plaintexts are written to storage by default.
 
 ## Authentication & session tokens
@@ -98,7 +98,7 @@ On startup the client will prompt for:
 2. Server port
 3. Server credentials (as configured on the server)
 
-The client then performs the cryptographic handshake (RSA/AES/HMAC) and attempts to authenticate. If both succeed, you can start chatting.
+The client then performs the cryptographic handshake (x25519/AES/HMAC) and attempts to authenticate. If both succeed, you can start chatting.
 
 ## Troubleshooting
 - Connection refused:
