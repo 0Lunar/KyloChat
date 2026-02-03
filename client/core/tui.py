@@ -1,15 +1,20 @@
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical
+from textual.containers import Container, Vertical, Horizontal, VerticalScroll
 from textual.widgets import Header, Footer, Static, Input, RichLog, OptionList, Button
 from textual.binding import Binding
 from textual.screen import Screen, ModalScreen
+from textual_fspicker.path_filters import Filters as FileFilters
+from textual_fspicker import FileOpen
+from textual_image.widget import Image as TerminalImage
+from PIL import Image
 from rich.text import Text
 from datetime import datetime
 from core import SocketHandler, Login, MessageTypes, Compressor
 import threading
 import queue
 import re
-
+import os
+import io
 
 class ConnectionScreen(Screen):
     """Screen for server connection input"""
@@ -282,6 +287,7 @@ class MenuScreen(ModalScreen):
         yield OptionList(
             "Clear chat",
             "Enable compression" if not self.compression else "Disable compression",
+            "Send image",
             "Exit chat",
             "Logout",
             "Abort"
@@ -313,6 +319,10 @@ class ChatScreen(Screen):
         background: $surface;
     }
     
+    #img_widget {
+        width: 0.4fr;
+    }
+    
     #input_container {
         layout: horizontal;
         height: auto;
@@ -326,6 +336,20 @@ class ChatScreen(Screen):
     
     #message_input {
         width: 90%;
+    }
+    
+    .user_image {
+        text-align: center;
+        padding: 1 1;
+        margin: 1 1;
+
+        background: $panel;
+        color: $text;
+    }
+    
+    .img_center {
+        content-align: center middle;
+        height: 15;
     }
     """
     
@@ -344,11 +368,13 @@ class ChatScreen(Screen):
     
     def compose(self) -> ComposeResult:
         yield Header()
-        with Vertical(id="chat_container"):
+        with Horizontal(id="chat_container"):
             yield RichLog(id="message_log", wrap=True, highlight=True, markup=True)
+            yield VerticalScroll(id='img_widget')
         with Container(id="input_container"):
             yield Button(label="▶", id='menu_btn')
             yield Input(placeholder="Type your message...", id="message_input")
+
         yield Footer()
     
     def on_mount(self) -> None:
@@ -399,14 +425,18 @@ class ChatScreen(Screen):
             
     def on_menu_closed(self, result: str | None):        
         if result == "Clear chat":
-            message_log = self.query_one("#message_log", RichLog)
-            message_log.clear()
+            self.query_one("#message_log", RichLog).clear()
+            self.query_one("#img_widget", VerticalScroll).remove_children()
+            
             
         elif result == "Enable compression":
             self.compression = True
           
         elif result == "Disable compression":
             self.compression = False
+            
+        elif result == "Send image":
+            self.run_worker(self.select_image)
             
         elif result == "Exit chat":
             self.action_quit_chat()
@@ -415,9 +445,66 @@ class ChatScreen(Screen):
             login = Login(self.conn)
             login.removeToken()
             self.action_quit_chat()
+            
+
+    async def select_image(self) -> None:
+        fspicker = FileOpen(title='Select an image', 
+                            must_exist=True, 
+                            filters=FileFilters(
+                                ("PNG", lambda p: p.suffix.lower() == '.png'),
+                                ("JPEG", lambda p: p.suffix.lower() == '.jpeg'),
+                                ("JPG", lambda p: p.suffix.lower() == '.jpg'),
+                                ("WEBP", lambda p: p.suffix.lower() == '.webp'),
+                            )
+                    )
+        file = str(await self.app.push_screen_wait(fspicker))
+        
+        if not os.path.isfile(file):
+            self.notify("Invalid file", severity='error')
+            return
     
+        try:
+            with open(file, 'rb') as f:
+                img = Image.open(f)
+
+                width = img.width
+                height = img.height
+
+                while width >= 600 or height >= 400:
+                    width //= 1.2
+                    height //= 1.2
+
+
+                img = img.resize([int(width), int(height)])
+                
+                image_data = io.BytesIO()
+                img.save(image_data, format='PNG')
+                image_data = image_data.getvalue()
+                img.close()
+            
+            if self.compression:
+                compressor = Compressor()
+                compressed_image_data = compressor.compress(image_data) + compressor.flush()
+                self.conn.unsafe_send(MessageTypes.COMPRESSED_IMAGE.value.to_bytes(1, 'little'))
+                self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + compressed_image_data)
+            else:
+                self.conn.unsafe_send(MessageTypes.IMAGE.value.to_bytes(1, 'little'))
+                self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + image_data)
+                
+            code = self.queue.get(timeout=5)
+            
+            if code in {400, 401, 403, 500}:
+                self.handle_server_error(code)
+                self.notify("Error sending the image", severity='error')
+            else:
+                self.add_image(self.username, image_data)
+                self.notify("Image sent successfully")
+        except Exception as ex:
+            self.notify(f"Error opening the image: {ex}", severity='error')
+        # TODO INVIO DEL FILE
+        
     
-    def add_message(self, username: str, message: str, is_own: bool = False, is_system: bool = False):
+    def add_message(self, username: str, message, is_own: bool = False, is_system: bool = False):
         """Add message to chat log"""
         message_log = self.query_one("#message_log", RichLog)
         timestamp = datetime.now().strftime("%H:%M:%S")
@@ -432,6 +519,29 @@ class ChatScreen(Screen):
             text.append(message)
         
         message_log.write(text)
+        
+    def add_image(self, username: str, image: bytes | Image.Image) -> None:
+        if type(image) == bytes:
+            image = Image.open(io.BytesIO(image))
+        
+        image_list = self.query_one("#img_widget", VerticalScroll)
+                
+        image_list.mount(
+            Static(
+                username,
+                classes="user_image"
+            )
+        )
+        
+        image_list.mount(
+            TerminalImage(
+                image,
+                classes="img_center"
+            )
+        )
+        
+        image_list.scroll_end(animate=True)
+        
     
     def send_message(self, message: str) -> bool:
         """Send message to server"""
@@ -478,7 +588,7 @@ class ChatScreen(Screen):
         while self.running:
             try:
                 msg_type = int.from_bytes(self.conn.unsafe_recv(1), 'little')
-                
+                                
                 if msg_type == MessageTypes.MESSAGE.value:
                     user = self.conn.recv_short_bytes().decode('utf-8', 'replace')
                     data = self.conn.recv_int_bytes().decode('utf-8', 'replace')
@@ -489,6 +599,13 @@ class ChatScreen(Screen):
                 elif msg_type == MessageTypes.STATUS_CODE.value:
                     code = int.from_bytes(self.conn.unsafe_recv(2), 'little')
                     self.queue.put(code)
+                    
+                elif msg_type == MessageTypes.IMAGE.value:
+                    user = self.conn.recv_short_bytes().decode('utf-8', 'replace')
+                    data = self.conn.recv_int_bytes()
+
+                    if user and data:
+                        self.app.call_from_thread(self.add_image, user, data)
             
             except Exception as e:
                 if self.running:

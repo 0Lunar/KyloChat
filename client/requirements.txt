@@ -2,3 +2,6 @@ cryptography
 rich
 regex
 textual
+textual_fspicker
+textual_image
+Pillow

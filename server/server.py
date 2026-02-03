@@ -52,7 +52,7 @@ def broadcast_system_message(message: bytes, exclude_session: Optional[str] = No
             logger.error(f"Failed to broadcast to {client.username}: {e}")
 
 
-def broadcast_user_message(username: str, message: bytes, exclude_session: Optional[str] = None) -> None:
+def broadcast_user_message(msg_type: int, username: str, message: bytes, exclude_session: Optional[str] = None) -> None:
     """Broadcast a user message to all connected clients"""
     exclude_set = {exclude_session} if exclude_session else set()
     
@@ -61,7 +61,7 @@ def broadcast_user_message(username: str, message: bytes, exclude_session: Optio
             continue
         
         try:
-            client.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+            client.conn.unsafe_send(msg_type.to_bytes(1, 'little'))
             client.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
             client.conn.send_int_bytes(message)
         except Exception as e:
@@ -138,10 +138,10 @@ def handle_command(conn: SocketHandler, token: str, command: str, session_id: st
         conn.send_int_bytes(b'ACCESS DENIED: Admin privileges required')
 
 
-def handle_message(token: str, message: bytes, session_id: str) -> None:
+def handle_message(msg_type: int, token: str, message: bytes, session_id: str) -> None:
     """Handle regular message broadcast"""
     username = hDb.TokenToUsername(token)
-    broadcast_user_message(username, message, exclude_session=session_id)
+    broadcast_user_message(msg_type, username, message, exclude_session=session_id)
 
 
 def handle_connection(session_id: str) -> None:
@@ -161,6 +161,9 @@ def handle_connection(session_id: str) -> None:
     logger.info(f"Starting message handler for {client.username} ({addr})")
     
     while True:
+        # default
+        msg_type_out = MessageTypes.MESSAGE.value
+        
         try:
             msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
             payload = conn.recv_int_bytes()
@@ -179,13 +182,25 @@ def handle_connection(session_id: str) -> None:
             if (timestamp() - start_tm) >= 1:
                 msg_cnt = 0
                 start_tm = timestamp()
-                
-            if msg_type == MessageTypes.COMPRESSED_MSG.value:
+                                
+            if msg_type == MessageTypes.COMPRESSED_MSG.value or msg_type == MessageTypes.COMPRESSED_IMAGE.value:
                 decomporessor = Decompressor()
                 payload = decomporessor.decompress(payload)
+
+            if msg_type == MessageTypes.COMPRESSED_IMAGE.value or msg_type == MessageTypes.IMAGE.value:
+                msg_type_out = MessageTypes.IMAGE.value
             
-            if len(payload) > settings.max_payload_size:
-                logger.warning(f'Payload size exceeded from {addr}: {len(payload)} bytes')
+            if msg_type == MessageTypes.MESSAGE.value and settings.max_message_size and len(payload) > settings.max_message_size:
+                logger.warning(f'Message size exceeded from {addr}: {len(payload)} bytes')
+                send_status_code(conn, 400)
+                
+                if settings.slow_down > 0:
+                    sleep(settings.slow_down)
+                
+                continue
+            
+            if msg_type == MessageTypes.IMAGE.value and settings.max_image_size and len(payload) > settings.max_image_size:
+                logger.warning(f'Image size exceeded from {addr}: {len(payload)} bytes')
                 send_status_code(conn, 400)
                 
                 if settings.slow_down > 0:
@@ -223,7 +238,7 @@ def handle_connection(session_id: str) -> None:
                 handle_command(conn, token, message, session_id)
             else:
                 send_status_code(conn, 200)
-                handle_message(token, data, session_id)
+                handle_message(msg_type_out, token, data, session_id)
             
             errors = 0
                         
