@@ -59,6 +59,9 @@ class ConnectionScreen(Screen):
             yield Static("Port:", classes="input_label")
             yield Input(placeholder="5000", value="5000", id="port_input")
         yield Footer()
+
+    def on_mount(self):
+        self.load_cache()
     
     def validate_ip(self, ip: str) -> bool:
         """Validate IP address format"""
@@ -78,7 +81,25 @@ class ConnectionScreen(Screen):
             return 1 <= port_num <= 65535
         except ValueError:
             return False
+        
+    def load_cache(self, filename: str = ".cache/last_host") -> None:
+        if os.path.isfile(filename):
+            with open(filename, 'rt') as f:
+                data = f.read().strip()
+                ip, port = data.split(" ")[:2]
+                
+                if self.validate_ip(ip) and self.validate_port(port):
+                    ip_input = self.query_one('#ip_input', Input)
+                    port_input = self.query_one('#port_input', Input)
+                    
+                    ip_input.value = ip
+                    port_input.value = port
+                    ip_input.cursor_position = len(ip)
     
+    def save_cache(self, host: str, port: int, filename: str = ".cache/last_host") -> None:
+        with open(filename, 'wt') as f:
+            f.write(f'{host} {port}')
+        
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle input submission"""
         ip_input = self.query_one("#ip_input", Input)
@@ -105,6 +126,8 @@ class ConnectionScreen(Screen):
         
             ip_input.disabled = False
             port_input.disabled = False
+            
+            self.save_cache(ip, int(port))
             
             login = Login(conn)
             if (token := login.checkCache()) == False:
