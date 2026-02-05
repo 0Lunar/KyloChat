@@ -428,7 +428,9 @@ class ChatScreen(Screen):
         self.receive_thread.start()
         
         # Focus input
-        self.query_one("#message_input", Input).focus()
+        np = self.query_one("#message_input", Input)
+        np.select_on_focus = False
+        np.focus()
     
     def on_input_submitted(self, event: Input.Submitted) -> None:
         """Handle message send"""
@@ -457,6 +459,7 @@ class ChatScreen(Screen):
         menu_items = [
             "Copy",
             "Remove",
+            "Reply",
             "Abort"
         ]
         
@@ -468,19 +471,25 @@ class ChatScreen(Screen):
         
         selected = result[0].strip()
         
-        if selected not in {"Copy", "Remove"}:
+        if selected not in {"Copy", "Remove", "Reply"}:
             return
         
         item = str(result[1][0].query_one(Label).render())
         index = result[1][1]
         list_view = self.query_one("#message_log", ListView)
-        
+                
         if selected == "Copy":
             pyperclip.copy(item)
         
         elif selected == "Remove":
             list_view.pop(index)
 
+        elif selected == "Reply":
+            user = item.split(" ")[0]
+            np = self.query_one('#message_input', Input)
+            np.value = f'@{user} '
+            np.focus()
+            np.cursor_position = len(np.value)
     
     def on_button_pressed(self, event):
         if event.button.id == 'menu_btn':
@@ -579,22 +588,26 @@ class ChatScreen(Screen):
                 self.notify("Image sent successfully")
         except Exception as ex:
             self.notify(f"Error opening the image: {ex}", severity='error')
-        # TODO INVIO DEL FILE
         
     
-    def add_message(self, username: str, message, is_own: bool = False, is_system: bool = False):
+    def add_message(self, username: str, message: str, is_own: bool = False, is_system: bool = False):
         """Add message to chat log"""
         message_log = self.query_one("#message_log", ListView)
         timestamp = datetime.now().strftime("%H:%M:%S")
-        
+
         if is_system:
             text = Text(f"*** {message} ***", style="italic yellow")
         else:
-            style = "bold cyan" if is_own else "bold green"
+            if message.startswith("@") and message.split(' ')[0].replace("@", "") == self.username:
+                mention = True
+            else:
+                mention = False
+
+            style = "bold cyan" if is_own else "bold white on #12356e" if mention else "bold green"    
             text = Text()
             text.append(username, style=style)
-            text.append(f" [{timestamp}]: ", style="dim")
-            text.append(message)
+            text.append(f" [{timestamp}]: ", style="dim on #12356e" if mention and not is_own else "dim")
+            text.append(message, style=style if mention and not is_own else None)
         
         out = ListItem(Label(text))
         message_log.append(out)
