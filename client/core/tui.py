@@ -1,12 +1,13 @@
 from textual.app import App, ComposeResult
-from textual.containers import Container, Vertical, Horizontal, VerticalScroll
-from textual.widgets import Header, Footer, Static, Input, RichLog, OptionList, Button
+from textual.containers import Container, Horizontal, VerticalScroll
+from textual.widgets import Header, Footer, Static, Input, OptionList, Button, ListView, ListItem, Label
 from textual.binding import Binding
 from textual.screen import Screen, ModalScreen
 from textual_fspicker.path_filters import Filters as FileFilters
 from textual_fspicker import FileOpen
 from textual_image.widget import Image as TerminalImage
 from PIL import Image
+import pyperclip
 from rich.text import Text
 from datetime import datetime
 from core import SocketHandler, Login, MessageTypes, Compressor
@@ -295,6 +296,14 @@ class MenuScreen(ModalScreen):
     CSS = """
     MenuScreen {
         background: rgba(0, 0, 0, 0.6);
+        align: center middle;
+    }
+    
+    #optionlist {
+        width: 60;
+        height: auto;
+        border: round $accent;
+        padding: 1;
     }
     """
     
@@ -302,25 +311,25 @@ class MenuScreen(ModalScreen):
         Binding("escape", "abort_key", "Back", show=True),
     ]
     
-    def __init__(self, compression: bool = False) -> None:
+    def __init__(self, items: list[str], *args) -> None:
         super().__init__()
-        self.compression = compression
+        self.items = items
+        self.args = args
     
     def compose(self) -> ComposeResult:
+        
+        items = [item.center(52) for item in self.items]
+        
         yield OptionList(
-            "Clear chat",
-            "Enable compression" if not self.compression else "Disable compression",
-            "Send image",
-            "Exit chat",
-            "Logout",
-            "Abort"
+            *items,
+            id="optionlist"
         )
         
     def action_abort_key(self):
         self.dismiss("Abort")
         
-    def on_option_list_option_selected(self, event):
-        self.dismiss(event.option.prompt)
+    def on_option_list_option_selected(self, event) -> None:
+        self.dismiss((event.option.prompt, self.args))
 
 
 class ChatScreen(Screen):
@@ -392,7 +401,7 @@ class ChatScreen(Screen):
     def compose(self) -> ComposeResult:
         yield Header()
         with Horizontal(id="chat_container"):
-            yield RichLog(id="message_log", wrap=True, highlight=True, markup=True)
+            yield ListView(id="message_log")
             yield VerticalScroll(id='img_widget')
         with Container(id="input_container"):
             yield Button(label="▶", id='menu_btn')
@@ -406,9 +415,9 @@ class ChatScreen(Screen):
         self.app.title = f"KyloChat - {self.username}"
         
         # Add welcome message
-        message_log = self.query_one("#message_log", RichLog)
-        message_log.write(Text("*** Welcome to KyloChat! ***", style="bold magenta"))
-        message_log.write(Text(f"*** {self.username} joined the chat! 👋 ***", style="italic yellow"))
+        message_log = self.query_one("#message_log", ListView)
+        message_log.append(ListItem(Label(Text("*** Welcome to KyloChat! ***", style="bold magenta"))))
+        message_log.append(ListItem(Label(Text(f"*** {self.username} joined the chat! 👋 ***", style="italic yellow"))))
         
         # Start receive thread
         self.running = True
@@ -440,15 +449,61 @@ class ChatScreen(Screen):
         # Send message
         if self.send_message(message):
             self.add_message(self.username, message, is_own=True)
+            
+    def on_list_view_selected(self, event: ListView.Selected) -> None:
+        item = event.item
+        index = event.index
+        
+        menu_items = [
+            "Copy",
+            "Remove",
+            "Abort"
+        ]
+        
+        self.app.push_screen(MenuScreen(menu_items, item, index), self.on_menu_closed_list)
+        
+    def on_menu_closed_list(self, result: tuple[str, tuple[ListItem, int]] | None):
+        if not result:
+            return
+        
+        selected = result[0].strip()
+        
+        if selected not in {"Copy", "Remove"}:
+            return
+        
+        item = str(result[1][0].query_one(Label).render())
+        index = result[1][1]
+        list_view = self.query_one("#message_log", ListView)
+        
+        if selected == "Copy":
+            pyperclip.copy(item)
+        
+        elif selected == "Remove":
+            list_view.pop(index)
+
     
     def on_button_pressed(self, event):
         if event.button.id == 'menu_btn':
-            self.app.push_screen(MenuScreen(self.compression), self.on_menu_closed)
+            items = [
+                "Clear chat",
+                "Enable compression" if not self.compression else "Disable compression",
+                "Send image",
+                "Exit chat",
+                "Logout",
+                "Abort"
+            ]
+            
+            self.app.push_screen(MenuScreen(items), self.on_menu_closed_btn)
             
             
-    def on_menu_closed(self, result: str | None):        
+    def on_menu_closed_btn(self, result: tuple[str, tuple] | None):
+        if not result:
+            return
+        
+        result = result[0].strip()
+                
         if result == "Clear chat":
-            self.query_one("#message_log", RichLog).clear()
+            self.query_one("#message_log", ListView).clear()
             self.query_one("#img_widget", VerticalScroll).remove_children()
             
             
@@ -529,7 +584,7 @@ class ChatScreen(Screen):
     
     def add_message(self, username: str, message, is_own: bool = False, is_system: bool = False):
         """Add message to chat log"""
-        message_log = self.query_one("#message_log", RichLog)
+        message_log = self.query_one("#message_log", ListView)
         timestamp = datetime.now().strftime("%H:%M:%S")
         
         if is_system:
@@ -541,7 +596,8 @@ class ChatScreen(Screen):
             text.append(f" [{timestamp}]: ", style="dim")
             text.append(message)
         
-        message_log.write(text)
+        out = ListItem(Label(text))
+        message_log.append(out)
         
     def add_image(self, username: str, image: bytes | Image.Image) -> None:
         if type(image) == bytes:

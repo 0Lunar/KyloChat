@@ -5,3 +5,4 @@ textual
 textual_fspicker
 textual_image
 Pillow
+pyperclip
