@@ -185,7 +185,7 @@ def handle_connection(session_id: str) -> None:
                                 
             if msg_type == MessageTypes.COMPRESSED_MSG.value or msg_type == MessageTypes.COMPRESSED_IMAGE.value:
                 decomporessor = Decompressor()
-                payload = decomporessor.decompress(payload)
+                payload = payload[:36] + decomporessor.decompress(payload[36:])
 
             if msg_type == MessageTypes.COMPRESSED_IMAGE.value or msg_type == MessageTypes.IMAGE.value:
                 msg_type_out = MessageTypes.IMAGE.value
