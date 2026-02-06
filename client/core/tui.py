@@ -598,10 +598,7 @@ class ChatScreen(Screen):
         if is_system:
             text = Text(f"*** {message} ***", style="italic yellow")
         else:
-            if message.startswith("@") and message.split(' ')[0].replace("@", "") == self.username:
-                mention = True
-            else:
-                mention = False
+            mention = f'@{self.username}' in set(message.split(" "))
 
             style = "bold cyan" if is_own else "bold white on #12356e" if mention else "bold green"    
             text = Text()
