@@ -161,7 +161,7 @@ class LoginScreen(Screen):
     
     #login_box {
         width: 60;
-        height: 19;
+        height: 17;
         border: thick $primary;
         padding: 1 2;
     }

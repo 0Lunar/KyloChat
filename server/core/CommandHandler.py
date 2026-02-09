@@ -10,7 +10,7 @@ class CommandHandler(object):
             "unban":    (1, self.unbanUser),     # Unban a user : /unban <usr_id : int>
             "isAdmin":  (1, self.isAdmin),       # Check if a user is admin : /isAdmin <usr_id: int>
             "isBanned": (1, self.isBanned),      # Check if a user is banned : /isBanned <usr_id : int>
-            "usrpw":    (2, self.changePasswd),  # Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
+            "chpw":     (2, self.changePasswd),  # Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
             "lsip":     (0, self.lsip),          # List all the connected ip's : /lsusr
             "mkusr":    (4, self.makeUser),      # Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
             "rvktk":    (1, self.revokeToken),   # Revoke a token : /rvktk <token : str>
@@ -35,7 +35,7 @@ b'''
 /unban          Unban a user : /unban <usr_id : int>
 /isAdmin        Check if a user is admin : /isAdmin <usr_id : int>
 /isBanned       Check if a user is banned : /isBanned <usr_id : int>
-/usrpw          Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
+/chpw           Change a password for a user : /usrpw <usr_id : int> <new_pwd : str>
 /lsip           List all the connected ip's : /lsusr
 /mkusr          Create a user on the database : /mkusr <username : str> <password : str> <email : str> <isadmin : bool>
 /rvktk          Revoke a token:  /rvktk <token : str>

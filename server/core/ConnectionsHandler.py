@@ -247,24 +247,3 @@ class ConnHandler:
     
     def __repr__(self) -> str:
         return f"ConnHandler(connections={self.count()})"
-
-
-# Example usage:
-if __name__ == "__main__":
-    handler = ConnHandler()
-    
-    # Simulate adding connections
-    # session1 = handler.add(conn1, ("192.168.1.100", 5000), "alice")
-    # session2 = handler.add(conn2, ("192.168.1.101", 5001), "bob")
-    
-    # Get by username
-    # client = handler.get_by_username("alice")
-    # print(f"Alice's session: {client.session_id}")
-    
-    # Broadcast to all except one
-    # handler.broadcast(b"Hello everyone!", exclude_sessions={session1})
-    
-    # Remove by username
-    # handler.remove_by_username("alice")
-    
-    print(handler)

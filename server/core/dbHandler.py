@@ -466,9 +466,6 @@ class DBHandler(object):
         if not self.checkUser(user_id):
             return False
         
-        if self.isAdmin(user_id):
-            return False
-        
         passwd = self.crypto.Bcrypt_Hash(
             newPasswd.encode(encoding='utf-8', errors='strict'),
             self.crypto.Generate_Bcrypt_Salt()
