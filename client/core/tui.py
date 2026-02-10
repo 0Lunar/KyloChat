@@ -1,5 +1,5 @@
 from textual.app import App, ComposeResult
-from textual.containers import Container, Horizontal, VerticalScroll
+from textual.containers import Container, Horizontal, Vertical
 from textual.widgets import Header, Footer, Static, Input, OptionList, Button, ListView, ListItem, Label
 from textual.binding import Binding
 from textual.screen import Screen, ModalScreen
@@ -351,10 +351,6 @@ class ChatScreen(Screen):
         background: $surface;
     }
     
-    #img_widget {
-        width: 0.4fr;
-    }
-    
     #input_container {
         layout: horizontal;
         height: auto;
@@ -367,7 +363,11 @@ class ChatScreen(Screen):
     }
     
     #message_input {
-        width: 90%;
+        width: 100%;
+    }
+    
+    #vertical_image {
+        height: 25;
     }
     
     .user_image {
@@ -402,7 +402,6 @@ class ChatScreen(Screen):
         yield Header()
         with Horizontal(id="chat_container"):
             yield ListView(id="message_log")
-            yield VerticalScroll(id='img_widget')
         with Container(id="input_container"):
             yield Button(label="▶", id='menu_btn')
             yield Input(placeholder="Type your message...", id="message_input")
@@ -474,15 +473,17 @@ class ChatScreen(Screen):
         if selected not in {"Copy", "Remove", "Reply"}:
             return
         
-        item = str(result[1][0].query_one(Label).render())
         index = result[1][1]
         list_view = self.query_one("#message_log", ListView)
+        
+        if selected == "Remove":
+            list_view.pop(index)
+            return
+        
+        item = str(result[1][0].query_one(Label).render())
                 
         if selected == "Copy":
             pyperclip.copy(item)
-        
-        elif selected == "Remove":
-            list_view.pop(index)
 
         elif selected == "Reply":
             user = item.split(" ")[0]
@@ -513,7 +514,6 @@ class ChatScreen(Screen):
                 
         if result == "Clear chat":
             self.query_one("#message_log", ListView).clear()
-            self.query_one("#img_widget", VerticalScroll).remove_children()
             
             
         elif result == "Enable compression":
@@ -613,19 +613,21 @@ class ChatScreen(Screen):
         if type(image) == bytes:
             image = Image.open(io.BytesIO(image))
         
-        image_list = self.query_one("#img_widget", VerticalScroll)
+        image_list = self.query_one("#message_log", ListView)
                 
-        image_list.mount(
-            Static(
-                username,
-                classes="user_image"
-            )
-        )
-        
-        image_list.mount(
-            TerminalImage(
-                image,
-                classes="img_center"
+        image_list.append(
+            ListItem(
+                Vertical(
+                    Static(
+                        username,
+                        classes="user_image"
+                    ),
+                    TerminalImage(
+                        image,
+                        classes="img_center"
+                    ),
+                    id='vertical_image'
+                )
             )
         )
         
@@ -637,9 +639,9 @@ class ChatScreen(Screen):
         try:
             if self.compression:
                 self.conn.unsafe_send(MessageTypes.COMPRESSED_MSG.value.to_bytes(1, 'little'))
-                payload = self.token.encode(encoding='utf-8', errors='strict') + message.encode(encoding='utf-8', errors='strict')
+                payload = message.encode(encoding='utf-8', errors='strict')
                 compressor = Compressor()
-                payload = compressor.compress(payload) + compressor.flush()
+                payload = self.token.encode(encoding='utf-8', errors='strict') + compressor.compress(payload) + compressor.flush()
                 
                 self.conn.send_int_bytes(payload)
             else:
