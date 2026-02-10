@@ -608,14 +608,15 @@ class ChatScreen(Screen):
         
         out = ListItem(Label(text))
         message_log.append(out)
+        message_log.scroll_end(animate=True)
         
     def add_image(self, username: str, image: bytes | Image.Image) -> None:
         if type(image) == bytes:
             image = Image.open(io.BytesIO(image))
         
-        image_list = self.query_one("#message_log", ListView)
+        message_log = self.query_one("#message_log", ListView)
                 
-        image_list.append(
+        message_log.append(
             ListItem(
                 Vertical(
                     Static(
@@ -631,7 +632,7 @@ class ChatScreen(Screen):
             )
         )
         
-        image_list.scroll_end(animate=True)
+        message_log.scroll_end(animate=True)
         
     
     def send_message(self, message: str) -> bool:
