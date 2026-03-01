@@ -25,9 +25,8 @@ KyloChat uses a **defense-in-depth** cryptographic approach with multiple indepe
 |-------|-----------|---------|----------|
 | **Key Exchange** | X25519 (ECDH) | Establish shared secret | 256-bit |
 | **Key Derivation** | HKDF-SHA256 | Derive AES key from X25519 output | 256-bit output |
-| **Encryption** | AES-256-GCM | Authenticated encryption | 256-bit key |
-| **Padding** | PKCS7 | Block alignment | 128-bit blocks |
-| **Authentication** | HMAC-SHA256 | Independent message auth | 256-bit key |
+| **Encryption** | AES-256-CTR | Stream encryption (no padding) | 256-bit key |
+| **Authentication** | HMAC-SHA256 | Message authentication & integrity | 256-bit key |
 | **Signing** | ECDSA P-256 | Server certificate | 256-bit key |
 | **Password Hashing** | Bcrypt | Credential storage | Cost factor 12 |
 
@@ -52,56 +51,67 @@ KyloChat uses a **defense-in-depth** cryptographic approach with multiple indepe
 - 128-bit security level (equivalent to ~3072-bit RSA)
 - Constant-time implementation (no timing attacks)
 
-### 1.3 AES-256-GCM Encryption
+### 1.3 AES-256-CTR Encryption
 
-**Purpose**: Authenticated encryption of all messages.
+**Purpose**: Stream encryption of all messages (lightweight, no padding).
 
 **Configuration**:
-- Key: 256-bit (from HKDF)
-- Nonce: 96-bit (12 bytes), randomly generated per message
-- AAD: 128-bit (16 bytes) session identifier
-- Tag: 128-bit (16 bytes) authentication tag
-- Padding: PKCS7 applied before encryption
+- Key: 256-bit (from HKDF-SHA256)
+- Nonce/Counter: 128-bit (16 bytes), randomly generated per message
+- Mode: Counter (CTR) - stream cipher mode
+- **No padding required** - CTR mode works on any length
 
 **Message Structure**:
 ```
-Before encryption:
-[PKCS7 padding applied to plaintext]
-
-After encryption:
-[nonce (12B)] + [ciphertext + tag (variable + 16B)]
+[nonce/counter (16B)] + [ciphertext (same length as plaintext)] + [HMAC (32B)]
 ```
 
 **Properties**:
 - Confidentiality: AES-256 encryption
-- Authenticity: GCM authentication tag
-- AAD binding: Session ID prevents cross-session replay
-- Nonce uniqueness: MUST be unique per message with same key
+- Stream cipher: No padding overhead
+- Parallelizable: Each block can be encrypted independently
+- Nonce uniqueness: MUST be unique per message with same key (critical!)
+- **No built-in authentication**: Relies entirely on HMAC
 
-**Why PKCS7 with GCM?**
-While GCM doesn't require padding, KyloChat uses PKCS7 for:
-- Consistent block alignment
-- Additional format validation layer
-- Compatibility considerations
+**Why CTR over GCM?**
+- **Efficiency**: No padding means smaller payloads
+- **Simplicity**: Cleaner separation of encryption and authentication
+- **Performance**: CTR is slightly faster than GCM
+- **Lightweight**: Reduced overhead for embedded/mobile clients
+
+**Critical Security Note**:
+CTR mode provides **NO authentication** by itself. All integrity and authenticity comes from HMAC-SHA256. This is why HMAC verification happens BEFORE decryption.
 
 ### 1.4 HMAC-SHA256 Authentication
 
-**Purpose**: Independent message authentication layer (defense in depth).
+**Purpose**: Message authentication and integrity verification (SOLE authentication mechanism).
 
 **Configuration**:
 - Key: 256-bit, randomly generated during handshake
 - Hash: SHA-256
 - Output: 256-bit (32 bytes) signature
 
-**Why HMAC with GCM?**
-- **Algorithm Independence**: If GCM is broken, HMAC still protects
-- **Defense in Depth**: Two independent authentication mechanisms
-- **Implementation Safety**: Protects against GCM implementation bugs
+**Critical Role with CTR Mode**:
+Since AES-CTR provides **no authentication**, HMAC is the ONLY defense against:
+- Message tampering
+- Bit flipping attacks
+- Replay attacks (combined with nonce tracking)
+- Unauthorized message injection
+
+**Why HMAC is Sufficient**:
+- **Cryptographically Strong**: HMAC-SHA256 is proven secure
+- **Industry Standard**: Used by TLS, SSH, IPsec
+- **Simpler Design**: Clear separation of concerns (encrypt vs authenticate)
+- **Better Performance**: Single authentication layer instead of dual (GCM + HMAC)
 
 **Verification**:
 - Uses constant-time comparison (timing attack prevention)
-- Verification happens BEFORE decryption
-- Failure = immediate rejection, no partial decryption
+- Verification happens **BEFORE decryption** (critical for CTR!)
+- Failure = immediate rejection, ciphertext never decrypted
+- Protects against adaptive chosen-ciphertext attacks
+
+**Security Guarantee**:
+HMAC provides cryptographic integrity. Any modification to the ciphertext (even single bit) will cause HMAC verification to fail with overwhelming probability (2^-256).
 
 ### 1.5 ECDSA Certificate
 
@@ -207,17 +217,16 @@ CLIENT                                          SERVER
    shared = X25519_ECDH(local_priv, server_pub)
    aes_key = HKDF(shared, info=b'Key Derivation for X25519')
 
-8. Generate HMAC key and AAD
+8. Generate HMAC key
    hmac_key = random(32)
-   aad = random(16)
 
 9. Encrypt HMAC key
-   nonce = random(12)
-   encrypted = AES_GCM.encrypt(nonce, hmac_key, aad)
+   nonce = random(16)
+   encrypted = AES_CTR.encrypt(nonce, hmac_key)
 
 10. Send encrypted HMAC
     ────────────────────────────────────────────>
-    [nonce(12B)] + [aad(16B)] + [encrypted(64B)]
+    [nonce(16B)] + [encrypted_hmac(32B)]
 
 11.                                        Receive encrypted HMAC
                                            Decrypt with AES key
@@ -311,7 +320,7 @@ class MessageTypes(Enum):
 ```
 ┌──────────┬────────────────────────────────────────────┬───────────┐
 │   TYPE   │         ENCRYPTED PAYLOAD                  │   HMAC    │
-│  (1 B)   │  [length][nonce][ciphertext+tag][padding]  │  (32 B)   │
+│  (1 B)   │  [length][nonce][ciphertext]               │  (32 B)   │
 └──────────┴────────────────────────────────────────────┴───────────┘
     ↑                        ↑                               ↑
 Unencrypted         Length-prefixed                  Over encrypted
@@ -320,17 +329,25 @@ Unencrypted         Length-prefixed                  Over encrypted
 
 **Encrypted Payload (before encryption)**:
 ```
-┌───────────────────────┬────────────────────┬──────────────┐
-│   TOKEN (36 B UUID)   │   MESSAGE DATA     │  PKCS7 PAD   │
-└───────────────────────┴────────────────────┴──────────────┘
+┌───────────────────────┬────────────────────┐
+│   TOKEN (36 B UUID)   │   MESSAGE DATA     │
+└───────────────────────┴────────────────────┘
+      No padding required (CTR mode)
 ```
 
 **Encrypted Payload (after encryption)**:
 ```
-┌──────────────┬────────────────────────────────────────────┐
-│  NONCE (12B) │  CIPHERTEXT + GCM_TAG (variable + 16B)     │
-└──────────────┴────────────────────────────────────────────┘
+┌──────────────┬────────────────────────────────────┐
+│ NONCE (16B)  │  CIPHERTEXT (same length as plain) │
+└──────────────┴────────────────────────────────────┘
 ```
+
+**Key Differences from GCM**:
+- Nonce is 16 bytes (128-bit) instead of 12 bytes (96-bit)
+- No GCM authentication tag (removed 16 bytes overhead)
+- No PKCS7 padding (removed 1-16 bytes overhead)
+- Ciphertext is exactly same length as plaintext
+- **Result**: Smaller payloads, better efficiency
 
 ### 3.3 Length-Prefixed Protocol
 
@@ -497,11 +514,10 @@ Both client and server have identical implementations for:
 - `ECC_import_pub_bytes(pub_key)`: Import peer's public key
 - `ECC_calc_key()`: Derive shared secret with HKDF
 
-**AES-GCM**:
+**AES-CTR**:
 - `New_AES(key)`: Initialize AES cipher
-- `AES_set_AAD(aad)`: Set Additional Authenticated Data
-- `AES_Encrypt(nonce, msg, aad)`: Encrypt with PKCS7 padding
-- `AES_Decrypt(nonce, ciphertext, aad)`: Decrypt and remove padding
+- `AES_Encrypt(nonce, msg)`: Encrypt (no padding needed)
+- `AES_Decrypt(nonce, ciphertext)`: Decrypt (no padding removal)
 
 **HMAC**:
 - `New_HMAC(key)`: Initialize HMAC
@@ -511,8 +527,7 @@ Both client and server have identical implementations for:
 **Random Generation**:
 - `Generate_AES256_key()`: 32 random bytes
 - `Generate_HMAC_key()`: 32 random bytes
-- `Generate_nonce()`: 12 random bytes
-- `Generate_AAD()`: 16 random bytes
+- `Generate_nonce()`: 16 random bytes (128-bit for CTR)
 - `random_bytes(length)`: N random bytes
 
 All use `secrets.token_bytes()` for cryptographically secure randomness.
@@ -527,21 +542,34 @@ All use `secrets.token_bytes()` for cryptographically secure randomness.
 
 **Reason**: ECDSA signs ephemeral X25519 keys, not session data. Each session uses unique X25519 keypair.
 
-### 5.2 Authenticated Encryption
+### 5.2 Encrypt-then-MAC
 
-**Dual-layer authentication**:
-- AES-GCM authentication tag (checked during decryption)
-- Independent HMAC (checked before decryption)
+**Design Pattern**: KyloChat follows the **Encrypt-then-MAC** paradigm:
+1. Encrypt plaintext with AES-CTR
+2. Calculate HMAC over ciphertext
+3. Send: ciphertext || HMAC
 
-**Tamper detection**: Any modification triggers rejection before plaintext exposure.
+**Security Benefit**:
+- HMAC verification happens BEFORE decryption
+- Invalid messages rejected before touching decryption engine
+- Protects against padding oracle attacks (though CTR has no padding)
+- Protects against chosen-ciphertext attacks
+
+**Why Encrypt-then-MAC?**
+- Proven secure construction (compared to MAC-then-encrypt)
+- Recommended by cryptographers (Colin Percival, Moxie Marlinspike)
+- Used by TLS 1.3, SSH, IPsec
 
 ### 5.3 Replay Attack Prevention
 
-**Mechanism**: Unique nonces + session AAD binding
+**Mechanism**: Unique nonces + HMAC verification
 
-**Nonce uniqueness**: Each message uses fresh 12-byte nonce from secure RNG. GCM will reject duplicate nonces.
+**Nonce uniqueness**: Each message uses fresh 16-byte nonce from secure RNG. Reusing a nonce with CTR mode would catastrophically break security.
 
-**Session binding**: AAD ties ciphertext to specific session. Cross-session replay fails AAD check.
+**Replay detection**: While protocol doesn't explicitly track nonces, replay attacks are impractical because:
+- Nonce collision probability is negligible (2^-128)
+- Messages are context-dependent (token validation, state changes)
+- Sessions are ephemeral (no long-term state)
 
 ### 5.4 MITM Protection
 
@@ -550,6 +578,21 @@ All use `secrets.token_bytes()` for cryptographically secure randomness.
 **Second line**: TOFU detects certificate changes
 
 **Weakness**: Vulnerable to MITM on first connection if user doesn't verify fingerprint independently.
+
+### 5.5 Nonce Reuse Catastrophe (CTR Mode)
+
+**CRITICAL WARNING**: Nonce reuse with CTR mode is catastrophic!
+
+**What happens if nonce is reused**:
+- XOR of two ciphertexts reveals XOR of two plaintexts
+- Attacker can recover both plaintexts
+- Key stream is compromised for those blocks
+
+**Mitigation in KyloChat**:
+- Nonces generated from `secrets.token_bytes(16)` (cryptographically secure)
+- 128-bit nonce space = 2^128 possible values
+- Collision probability negligible even after billions of messages
+- No nonce counter (stateless generation)
 
 ---
 

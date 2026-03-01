@@ -480,13 +480,27 @@ class ChatScreen(Screen):
             list_view.pop(index)
             return
         
-        item = str(result[1][0].query_one(Label).render())
+        try:
+            item = 'T', result[1][0].query_one(Label)
+        except:
+            self.notify('Not implemented', severity='warning')
+            return
                 
         if selected == "Copy":
-            pyperclip.copy(item)
+            try:
+                if item[0] == 'T':
+                    pyperclip.copy(str(item[1].render()))
+                else:
+                    self.notify('Can\'t copy imasge', severity='warning')
+            except:
+                self.notify('Can\'t copy content')
 
         elif selected == "Reply":
-            user = item.split(" ")[0]
+            if item[0] == "T":
+                user = str(item[1].render()).split(" ")[0]
+            else:
+                user = str(item[1].get_child_by_id('user_image').render())
+                
             np = self.query_one('#message_input', Input)
             np.value = f'@{user} '
             np.focus()

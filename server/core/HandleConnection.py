@@ -80,23 +80,24 @@ class SocketHandler(socket.socket):
             self.crypto.New_AES(aes_key)
 
             # Get HMAC
-            enc = conn.recv(92)
+            enc = conn.recv(48)
 
-            while len(enc) < 92:
-                chunk = conn.recv(92 - len(enc))
+            while len(enc) < 48:
+                chunk = conn.recv(48 - len(enc))
                 if not chunk:
                     conn.close()
                     raise RuntimeError("Failed to receive complete HMAC key")
                 enc += chunk
 
-            if len(enc) != 92:
+            if len(enc) != 48:
                 conn.close()
                 raise ValueError(f"Invalid HMAC key length: {len(enc)} != 64")
 
-            nonce, aad, encrypted_hmac_key = enc[:12], enc[12:28], enc[28:]
+            nonce, encrypted_hmac_key = enc[:16], enc[16:]
+            
+            
 
-            self.crypto.AES_set_AAD(aad)
-            hmac_key = self.crypto.AES_Decrypt(nonce, encrypted_hmac_key, aad)
+            hmac_key = self.crypto.AES_Decrypt(nonce, encrypted_hmac_key)
 
             if hmac_key is None or len(hmac_key) != 32:
                 conn.close()
@@ -122,6 +123,11 @@ class SocketHandler(socket.socket):
         Returns:
             out : The payload received
         """
+        if not self.connected:
+            raise RuntimeError("Not connected")
+        
+        if not self.hs:
+            raise RuntimeError("Missing handshake")
         
         data = b''
         while len(data) < self.MIN_ENC_PAYLOAD + (size + (-size % 16)):
@@ -135,12 +141,12 @@ class SocketHandler(socket.socket):
         if len(data) < self.MIN_ENC_PAYLOAD:
             raise RuntimeError("Payload too short")
 
-        nonce, data, sig = data[:12], data[12:-32], data[-32:]
+        nonce, data, sig = data[:16], data[16:-32], data[-32:]
 
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
 
-        if not (data := self.crypto.AES_Decrypt(nonce, data, None)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data)):
             raise RuntimeError("Error decrypting msg with AES")
 
         return data
@@ -164,7 +170,8 @@ class SocketHandler(socket.socket):
         
         nonce = self.crypto.Generate_nonce()
         
-        data = self.crypto.AES_Encrypt(nonce, msg, None)
+        if not (data := self.crypto.AES_Encrypt(nonce, msg)):
+            raise RuntimeError("AES encryption error")
         
         sig = self.crypto.Sign_HMAC(data)
         
@@ -188,9 +195,7 @@ class SocketHandler(socket.socket):
         
         nonce = self.crypto.Generate_nonce()
         
-        data = self.crypto.AES_Encrypt(nonce, msg, None)
-        
-        if data is None:
+        if not (data := self.crypto.AES_Encrypt(nonce, msg)):
             raise RuntimeError("Data encryption error (AES)")
         
         sig = self.crypto.Sign_HMAC(data)
@@ -205,6 +210,9 @@ class SocketHandler(socket.socket):
     def _recvNbytes(self, n: int) -> bytes:
         if not self.connected:
             raise RuntimeError("Not connected")
+        
+        if not self.hs:
+            raise RuntimeError("Missing handshake")
         
         payload_len = b''
         
@@ -228,12 +236,12 @@ class SocketHandler(socket.socket):
             
             data += chunk
         
-        nonce, data, sig = data[:12], data[12:-32], data[-32:]        
+        nonce, data, sig = data[:16], data[16:-32], data[-32:]        
         
         if not self.crypto.check_HMAC(data, sig):
             raise RuntimeError("Invalid HMAC")
         
-        if not (data := self.crypto.AES_Decrypt(nonce, data, None)):
+        if not (data := self.crypto.AES_Decrypt(nonce, data)):
             raise RuntimeError("Error decrypting msg with AES")
         
         return data

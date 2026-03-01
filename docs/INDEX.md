@@ -74,8 +74,8 @@ This technical documentation provides comprehensive coverage of KyloChat's archi
 
 **Topics Covered**:
 - X25519 (ECDH) key exchange with HKDF
-- AES-256-GCM authenticated encryption with PKCS7 padding
-- HMAC-SHA256 independent authentication
+- AES-256-CTR stream encryption (no padding)
+- HMAC-SHA256 authentication (Encrypt-then-MAC)
 - ECDSA certificate generation and verification
 - TOFU (Trust On First Use) certificate validation
 - Bcrypt password hashing
@@ -179,8 +179,8 @@ This technical documentation provides comprehensive coverage of KyloChat's archi
 
 ### Cryptography
 - **Key Exchange**: X25519 ECDH with HKDF-SHA256 key derivation
-- **Encryption**: AES-256-GCM with PKCS7 padding and 96-bit nonces
-- **Authentication**: Dual-layer (GCM tag + HMAC-SHA256)
+- **Encryption**: AES-256-CTR (stream cipher, no padding overhead)
+- **Authentication**: HMAC-SHA256 (Encrypt-then-MAC pattern)
 - **Certificates**: ECDSA P-256 for server identity, TOFU for MITM protection
 
 ### Database

@@ -4,7 +4,7 @@
   <img src="https://img.shields.io/badge/license-AGPL%203.0-blue.svg" alt="License">
   <img src="https://img.shields.io/badge/python-3.8%2B-blue.svg" alt="Python">
   <img src="https://img.shields.io/badge/docker-required-blue.svg" alt="Docker">
-  <img src="https://img.shields.io/badge/encryption-X25519%20%7C%20AES--256--GCM-green.svg" alt="Encryption">
+  <img src="https://img.shields.io/badge/encryption-X25519%20%7C%20AES--256--CTR-green.svg" alt="Encryption">
 </p>
 
 <p align="center">
@@ -29,8 +29,8 @@ KyloChat is an encrypted chat application designed with **absolute privacy** as 
 
 ### 🔐 Advanced Cryptography
 - **X25519 (ECDH)**: Elliptic curve key exchange with HKDF-SHA256 key derivation
-- **AES-256-GCM**: Authenticated encryption with PKCS7 padding
-- **HMAC-SHA256**: Independent message authentication layer
+- **AES-256-CTR**: Stream cipher encryption (no padding overhead)
+- **HMAC-SHA256**: Message authentication (Encrypt-then-MAC)
 - **ECDSA secp256r1**: Server certificate generation and signing
 - **Bcrypt**: Secure password hashing with configurable cost factor
 
@@ -80,9 +80,9 @@ KyloChat is an encrypted chat application designed with **absolute privacy** as 
 │                        CLIENT (TUI)                         │
 │  ┌────────────┐  ┌────────────────┐  ┌────────────────┐     │
 │  │  Textual   │  │  CryptoHandler │  │  Certificate   │     │
-│  │    UI      │──│                │──│   Validator    │     │
+│  │    UI      │──│  (226 lines)   │──│   Validator    │     │
 │  │            │  │  • X25519      │  │   (TOFU)       │     │
-│  │            │  │  • AES-GCM     │  │                │     │
+│  │            │  │  • AES-CTR     │  │                │     │
 │  │            │  │  • HMAC        │  │                │     │
 │  │            │  │  • Cert Verify │  │                │     │
 │  └────────────┘  └────────────────┘  └────────────────┘     │
@@ -94,7 +94,7 @@ KyloChat is an encrypted chat application designed with **absolute privacy** as 
 └─────────────────────────┼───────────────────────────────────┘
                           │
                 Encrypted Channel
-        (X25519 + AES-256-GCM + HMAC)
+        (X25519 + AES-256-CTR + HMAC)
                           │
 ┌─────────────────────────┼───────────────────────────────────┐
 │                         │          SERVER                   │
@@ -104,7 +104,7 @@ KyloChat is an encrypted chat application designed with **absolute privacy** as 
 │  │      Connection Handler (Thread Pool)    │               │
 │  │  ┌─────────────┐  ┌──────────────────┐   │               │
 │  │  │CryptoHandler│  │   Authentication │   │               │
-│  │  │             │──│     Handler      │   │               │
+│  │  │(275 lines)  │──│     Handler      │   │               │
 │  │  │• X25519     │  │   • Bcrypt       │   │               │
 │  │  │• AES-GCM    │  │   • Token Mgmt   │   │               │
 │  │  │• HMAC       │  │                  │   │               │
@@ -350,6 +350,7 @@ KyloChat guarantees these data are **NEVER** saved:
 - ❌ Message content (text or images)
 - ❌ Message metadata (timestamps, sizes, sender/receiver)
 - ❌ Conversation histories
+- ❌ User IP addresses (except temporary ban list in memory)
 - ❌ Session information beyond authentication tokens
 - ❌ User activity logs (except system events)
 
@@ -413,7 +414,7 @@ Format in `.cache/fingers.pub`:
 
 Complete documentation is available in the `docs/` directory:
 
-- **[Technical Documentation](docs/TECHNICAL.md)**: Detailed architecture, cryptography protocols, and implementation (coming soon)
+- **[Technical Documentation](docs/TECHNICAL.md)**: Detailed architecture, cryptography protocols, and implementation
 - **[API Reference](docs/API.md)**: Protocol specification for developers (coming soon)
 - **[Deployment Guide](docs/DEPLOYMENT.md)**: Production setup and best practices (coming soon)
 - **[Security Analysis](docs/SECURITY.md)**: Threat model and security guarantees (coming soon)
