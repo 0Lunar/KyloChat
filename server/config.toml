@@ -9,6 +9,8 @@ port=5000
 # Configure logging file
 [Logging]
 
+logging=false
+save_logs=true
 log_dir='logs'
 log_file='chatserver.log'
 

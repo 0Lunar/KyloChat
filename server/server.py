@@ -33,7 +33,8 @@ def send_status_code(conn: SocketHandler, code: int) -> None:
         conn.unsafe_send(MessageTypes.STATUS_CODE.value.to_bytes(1, 'little'))
         conn.unsafe_send(int.to_bytes(code, 2, 'little'))
     except Exception as e:
-        logger.error(f"Failed to send status code {code}: {e}")
+        if settings.logging:
+            logger.error(f"Failed to send status code {code}: {e}")
 
 
 def broadcast_system_message(message: bytes, exclude_session: Optional[str] = None) -> None:
@@ -49,7 +50,8 @@ def broadcast_system_message(message: bytes, exclude_session: Optional[str] = No
             client.conn.send_short_bytes(b'SERVER')
             client.conn.send_int_bytes(message)
         except Exception as e:
-            logger.error(f"Failed to broadcast to {client.username}: {e}")
+            if settings.logging:
+                logger.error(f"Failed to broadcast to {client.username}: {e}")
 
 
 def broadcast_user_message(msg_type: int, username: str, message: bytes, exclude_session: Optional[str] = None) -> None:
@@ -65,7 +67,8 @@ def broadcast_user_message(msg_type: int, username: str, message: bytes, exclude
             client.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
             client.conn.send_int_bytes(message)
         except Exception as e:
-            logger.error(f"Failed to send message to {client.username}: {e}")
+            if settings.logging:
+                logger.error(f"Failed to send message to {client.username}: {e}")
 
 
 def handle_exit_command(session_id: str, token: str) -> None:
@@ -77,7 +80,8 @@ def handle_exit_command(session_id: str, token: str) -> None:
     
     username = hDb.TokenToUsername(token) if hDb.existToken(token) else "Unknown"
     
-    logger.info(f"Connection closed: {username} ({client.addr})")
+    if settings.logging:
+        logger.info(f"Connection closed: {username} ({client.addr})")
         
     # System notification
     if hDb.existToken(token):
@@ -101,17 +105,20 @@ def validate_token(conn: SocketHandler, token: str, addr: tuple) -> bool:
         True if token is valid, False otherwise
     """
     if not hDb.existToken(token):
-        logger.warning(f"Invalid token from {addr}")
+        if settings.logging:
+            logger.warning(f"Invalid token from {addr}")
         send_status_code(conn, 403)
         return False
     
     if hDb.checkTokenBan(token):
-        logger.warning(f"Banned token from {addr}")
+        if settings.logging:
+            logger.warning(f"Banned token from {addr}")
         send_status_code(conn, 403)
         return False
     
     if hDb.isExpiredToken(token):
-        logger.warning(f"Expired token from {addr}")
+        if settings.logging:
+            logger.warning(f"Expired token from {addr}")
         send_status_code(conn, 401)
         return False
     
@@ -123,7 +130,8 @@ def handle_command(conn: SocketHandler, token: str, command: str, session_id: st
     send_status_code(conn, 100)
     
     if hDb.isAdminToken(token):
-        logger.info(f"Executing command: {command}")
+        if settings.logging:
+            logger.info(f"Executing command: {command}")
         output = hCommand.parseCommand(command)
         
         conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
@@ -131,7 +139,8 @@ def handle_command(conn: SocketHandler, token: str, command: str, session_id: st
         conn.send_int_bytes(output)
     else:
         username = hDb.TokenToUsername(token)
-        logger.warning(f"Command denied for {username} ({conn.addr})")
+        if settings.logging:
+            logger.warning(f"Command denied for {username} ({conn.addr})")
         
         conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
         conn.send_short_bytes(b'SERVER')
@@ -149,7 +158,8 @@ def handle_connection(session_id: str) -> None:
     client = hConn.get(session_id)
     
     if not client:
-        logger.error(f"Session {session_id} not found")
+        if settings.logging:
+            logger.error(f"Session {session_id} not found")
         return
     
     conn = client.conn
@@ -158,7 +168,8 @@ def handle_connection(session_id: str) -> None:
     msg_cnt = 0
     start_tm = timestamp()
     
-    logger.info(f"Starting message handler for {client.username} ({addr})")
+    if settings.logging:
+        logger.info(f"Starting message handler for {client.username} ({addr})")
     
     while True:
         # default
@@ -169,10 +180,12 @@ def handle_connection(session_id: str) -> None:
             payload = conn.recv_int_bytes()
             msg_cnt += 1
             
-            logger.info(f"Received {len(payload)} bytes from {client.username} ({addr})")
+            if settings.logging:
+                logger.info(f"Received {len(payload)} bytes from {client.username} ({addr})")
                               
             if msg_cnt > settings.rate_limit:
-                logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
+                if settings.logging:
+                    logger.warning(f'Rate Limit exceeded from {addr}: {msg_cnt} msg/s')
                 send_status_code(conn, 401)
                 sleep(settings.rate_limit_sleep)
                 msg_cnt = 0
@@ -191,7 +204,8 @@ def handle_connection(session_id: str) -> None:
                 msg_type_out = MessageTypes.IMAGE.value
             
             if msg_type == MessageTypes.MESSAGE.value and settings.max_message_size and len(payload) > settings.max_message_size:
-                logger.warning(f'Message size exceeded from {addr}: {len(payload)} bytes')
+                if settings.logging:
+                    logger.warning(f'Message size exceeded from {addr}: {len(payload)} bytes')
                 send_status_code(conn, 400)
                 
                 if settings.slow_down > 0:
@@ -200,7 +214,8 @@ def handle_connection(session_id: str) -> None:
                 continue
             
             if msg_type == MessageTypes.IMAGE.value and settings.max_image_size and len(payload) > settings.max_image_size:
-                logger.warning(f'Image size exceeded from {addr}: {len(payload)} bytes')
+                if settings.logging:
+                    logger.warning(f'Image size exceeded from {addr}: {len(payload)} bytes')
                 send_status_code(conn, 400)
                 
                 if settings.slow_down > 0:
@@ -209,7 +224,8 @@ def handle_connection(session_id: str) -> None:
                 continue
             
             if len(payload) < 36:
-                logger.warning(f"Invalid payload size from {addr}: {len(payload)} bytes")
+                if settings.logging:
+                    logger.warning(f"Invalid payload size from {addr}: {len(payload)} bytes")
                 send_status_code(conn, 400)
                 
                 if settings.slow_down > 0:
@@ -230,7 +246,8 @@ def handle_connection(session_id: str) -> None:
                     
                 continue
             
-            logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
+            if settings.logging:
+                logger.info(f"Received {len(data)} bytes from {client.username} ({addr})")
             
             message = data.decode(encoding='utf-8', errors='ignore')
             
@@ -243,28 +260,33 @@ def handle_connection(session_id: str) -> None:
             errors = 0
                         
         except ConnectionResetError:
-            logger.warning(f"Connection reset by {client.username} ({addr})")
+            if settings.logging:
+                logger.warning(f"Connection reset by {client.username} ({addr})")
             handle_exit_command(session_id, token)
             break
         
         except BrokenPipeError:
-            logger.warning(f"Broken pipe for {client.username} ({addr})")
+            if settings.logging:
+                logger.warning(f"Broken pipe for {client.username} ({addr})")
             handle_exit_command(session_id, token)
             break
         
         except Exception as ex:
             errors += 1
-            logger.error(f"Error handling message from {client.username} ({addr}): {ex}")
+            if settings.logging:
+                logger.error(f"Error handling message from {client.username} ({addr}): {ex}")
             
             if errors >= settings.max_conn_errors:
-                logger.critical(f"Maximum error limit ({settings.max_conn_errors}) exceeded for {client.username} ({addr})")
+                if settings.logging:
+                    logger.critical(f"Maximum error limit ({settings.max_conn_errors}) exceeded for {client.username} ({addr})")
                 handle_exit_command(session_id, token)
                 break
             
         if settings.slow_down > 0:
             sleep(settings.slow_down)
     
-    logger.info(f"Connection handler terminated for {client.username} ({addr})")
+    if settings.logging:
+        logger.info(f"Connection handler terminated for {client.username} ({addr})")
 
 
 def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
@@ -272,12 +294,15 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
     session_id = None
     
     try:
-        logger.info(f"Starting handshake with {addr}")
+        if settings.logging:
+            logger.info(f"Starting handshake with {addr}")
         conn.handshake()
-        logger.info(f"Handshake completed with {addr}")
+        
+        if settings.logging:
+            logger.info(f"Handshake completed with {addr}")
         
         # Authentication
-        logger.info(f"Requiring credentials from {addr}")
+            logger.info(f"Requiring credentials from {addr}")
         login_handler = Login(conn)
         
         token = None
@@ -287,27 +312,33 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
                 try:
                     token = login_handler.get_login()
                 except:
-                    logger.warning(f'Connection closed from {addr[0]}')
+                    if settings.logging:
+                        logger.warning(f'Connection closed from {addr[0]}')
                     conn.close()
                     return
                     
                 if token:
-                    logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
+                    if settings.logging:
+                        logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
                     netBan.removeLogin(addr[0])
                     break
                 
-                logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
+                if settings.logging:
+                    logger.warning(f"Login attempt {attempt}/{settings.login_attempts} failed for {addr}")
                 netBan.addLogin(addr[0], attempt)
                 
                 if netBan.countLogin(addr[0]) >= settings.login_attempts:
                     netBan.newBan(addr[0])
                     netBan.removeLogin(addr[0])
-                    logger.warning(f"Maximum login attempts exceeded for {addr}")
+                    
+                    if settings.logging:
+                        logger.warning(f"Maximum login attempts exceeded for {addr}")
                     conn.close()
                     return
 
             else:
-                logger.warning(f"Maximum login attempts exceeded for {addr}")
+                if settings.logging:
+                    logger.warning(f"Maximum login attempts exceeded for {addr}")
                 
                 if settings.ban_on_fail:
                     netBan.newBan(addr[0])
@@ -322,23 +353,28 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
                 try:
                     token = login_handler.get_login()
                 except RuntimeError:
-                    logger.warning(f'Connection closed from {addr[0]}')
+                    if settings.logging:
+                        logger.warning(f'Connection closed from {addr[0]}')
                     conn.close()
                     return
                 
                 if token:
-                    logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
+                    if settings.logging:
+                        logger.info(f"Authentication successful for {login_handler.logged_user} from {addr}")
                     break
                 
-                logger.warning(f"Login attempt {attempt} failed for {addr}")
+                if settings.logging:
+                    logger.warning(f"Login attempt {attempt} failed for {addr}")
                 attempt += 1
 
         
         try:
             session_id = hConn.add(conn, addr, login_handler.logged_user)
-            logger.info(f"Session {session_id} created for {login_handler.logged_user}")
+            if settings.logging:
+                logger.info(f"Session {session_id} created for {login_handler.logged_user}")
         except ValueError as e:
-            logger.error(f"Failed to add connection: {e}")
+            if settings.logging:
+                logger.error(f"Failed to add connection: {e}")
             conn.send_short_bytes(b'SERVER')
             conn.send_int_bytes(b'Username already connected')
             conn.close()
@@ -351,10 +387,12 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
         handle_connection(session_id)
         
     except ConnectionResetError:
-        logger.warning(f"Connection reset during handshake from {addr}")
+        if settings.logging:
+            logger.warning(f"Connection reset during handshake from {addr}")
     
     except Exception as ex:
-        logger.critical(f"Handshake error from {addr}: {ex}")
+        if settings.logging:
+            logger.critical(f"Handshake error from {addr}: {ex}")
     
     finally:
         # Cleanup
@@ -369,7 +407,8 @@ def handle_handshake(conn: SocketHandler, addr: tuple[str, int]) -> None:
 
 def shutdown_server() -> None:
     """Shutdown the server"""
-    logger.info("Shutting down server...")
+    if settings.logging:
+        logger.info("Shutting down server...")
     
     # Notify all clients
     shutdown_msg = b"Server is shutting down. Goodbye!"
@@ -383,13 +422,15 @@ def shutdown_server() -> None:
             pass
     
     hConn.clear()
-    logger.info("Server shutdown complete")
+    if settings.logging:
+        logger.info("Server shutdown complete")
 
 
 def main() -> None:
     """Main server entry point"""
-    logger.info(f"Server settings: \n{settings}")
-    logger.info(f"Starting KyloChat Server on {IP}:{PORT}...")
+    if settings.logging:
+        logger.info(f"Server settings: \n{settings}")
+        logger.info(f"Starting KyloChat Server on {IP}:{PORT}...")
     
     try:
     # Create server socket
@@ -398,11 +439,13 @@ def main() -> None:
         server_socket.bind((IP, PORT))
         server_socket.listen()
     except Exception as ex:
-        logger.critical(f"Error starting KyloChat: {ex}")
+        if settings.logging:
+            logger.critical(f"Error starting KyloChat: {ex}")
         return
     
-    logger.info(f"Server listening on {IP}:{PORT}")
-    logger.info("Press Ctrl+C to stop the server")
+    if settings.logging:
+        logger.info(f"Server listening on {IP}:{PORT}")
+        logger.info("Press Ctrl+C to stop the server")
     
     try:
         while True:
@@ -417,21 +460,25 @@ def main() -> None:
                 conn, addr = server_socket.accept()
                 
                 if settings.white_list and addr[0] not in settings.white_list:
-                    logger.warning(f'Connection rejected from {addr}: not in whitelist')
+                    if settings.logging:
+                        logger.warning(f'Connection rejected from {addr}: not in whitelist')
                     conn.close()
                     continue
                 
                 elif settings.black_list and addr[0] in settings.black_list:
-                    logger.warning(f'Connection rejected from {addr}: blacklist')
+                    if settings.logging:
+                        logger.warning(f'Connection rejected from {addr}: blacklist')
                     conn.close()
                     continue
                 
                 elif netBan.isBanned(addr[0]):
-                    logger.warning(f'Connection rejected from {addr}: network banned')
+                    if settings.logging:
+                        logger.warning(f'Connection rejected from {addr}: network banned')
                     conn.close()
                     continue
                 
-                logger.info(f"New connection from {addr}")
+                if settings.logging:
+                    logger.info(f"New connection from {addr}")
                                 
                 # Handle in new thread
                 thread = threading.Thread(
@@ -443,19 +490,23 @@ def main() -> None:
                 thread.start()
                 
             except socket.timeout:
-                logger.error("Timeout")
+                if settings.logging:
+                    logger.error("Timeout")
                 continue
             
             except Exception as ex:
-                logger.error(f"Error accepting connection: {ex}")
+                if settings.logging:
+                    logger.error(f"Error accepting connection: {ex}")
     
     except KeyboardInterrupt:
-        logger.info("Keyboard interrupt received")
+        if settings.logging:
+            logger.info("Keyboard interrupt received")
     
     finally:
         shutdown_server()
         server_socket.close()
-        logger.info("Server stopped")
+        if settings.logging:
+            logger.info("Server stopped")
 
 
 if __name__ == "__main__":

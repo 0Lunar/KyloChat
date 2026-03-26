@@ -2,8 +2,8 @@ import logging
 import logging.handlers
 import os
 import sys
-from datetime import datetime
 from colorama import init, Fore, Style
+from core.SettingsParser import SettingsParser
 
 class Logger:
     def __init__(self, log_dir="logs", log_file="chatserver.log", max_file_size: int = 10*1024*1024, backup_count: int = 5, 
@@ -16,6 +16,7 @@ class Logger:
         self.backup_count = backup_count
         self.use_colors = use_colors and console_output
         self.console_output = console_output
+        self.settings = SettingsParser()
         
         os.makedirs(log_dir, exist_ok=True)
         self.setup_logger()
@@ -39,18 +40,19 @@ class Logger:
         else:
             console_formatter = file_formatter
         
-        # Handler file
-        log_file = os.path.join(self.log_dir, self.log_file)
-        file_handler = logging.handlers.RotatingFileHandler(
-            log_file,
-            maxBytes=self.max_file_size,
-            backupCount=self.backup_count,
-            encoding='utf-8'
-        )
-        
-        file_handler.setFormatter(file_formatter)
-        file_handler.setLevel(logging.DEBUG)
-        self.logger.addHandler(file_handler)
+        if self.settings.logging and self.settings.save_logs:
+            # Handler file
+            log_file = os.path.join(self.log_dir, self.log_file)
+            file_handler = logging.handlers.RotatingFileHandler(
+                log_file,
+                maxBytes=self.max_file_size,
+                backupCount=self.backup_count,
+                encoding='utf-8'
+            )
+
+            file_handler.setFormatter(file_formatter)
+            file_handler.setLevel(logging.DEBUG)
+            self.logger.addHandler(file_handler)
         
         if self.console_output:
             console_handler = logging.StreamHandler(sys.stdout)

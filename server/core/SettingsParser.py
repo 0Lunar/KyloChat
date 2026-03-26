@@ -20,6 +20,8 @@ class SettingsParser(object):
         try:
             self.ip = self.config['Address']['ip_address']
             self.port = self.config['Address']['port']
+            self.logging = self.config['Logging']['logging']
+            self.save_logs = self.config['Logging']['save_logs']
             self.log_dir = self.config['Logging']['log_dir']
             self.log_file = self.config['Logging']['log_file']
             self.login_attempts = self.config['Authentication']['login_attempts']
