@@ -26,3 +26,9 @@ class ParameterError(Exception):
     """Base exception for parameter errors"""
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
+        
+
+class ConfigurationError(Exception):
+    """Base exception for configuration errors"""
+    def __init__(self, *args: object) -> None:
+        super().__init__(*args)

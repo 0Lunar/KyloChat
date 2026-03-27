@@ -1,6 +1,20 @@
 import toml
 import os
-from core.Exceptions import DecodingError, ParameterError
+import re
+from core.Exceptions import DecodingError, ParameterError, ConfigurationError
+
+
+def validate_ip(ip: str) -> bool:
+    """Validate IP address format"""
+        
+    if ip.count('.') == 3 and not any([not i.isdigit() for i in ip.split('.')]):
+        return bool(re.match(r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$', ip))
+        
+    if ip.split('.')[-1].isdigit():
+        return False
+        
+    return bool(re.match(r'^((([A-Za-z0-9\-\_])+\.)+)?([A-Za-z0-9\-\_])+\.([A-Za-z0-9\-\_])+$', ip))
+    
 
 
 class SettingsParser(object):
@@ -19,9 +33,17 @@ class SettingsParser(object):
         
         try:
             self.ip = self.config['Address']['ip_address']
+            
+            if not validate_ip(self.ip):
+                raise ConfigurationError("Invalid IP Address")
+            
             self.port = self.config['Address']['port']
-            self.logging = self.config['Logging']['logging']
-            self.save_logs = self.config['Logging']['save_logs']
+            
+            if self.port < 0 or self.port > 65535:
+                raise ConfigurationError("Invalid port")
+            
+            self.logging = bool(self.config['Logging']['logging'])
+            self.save_logs = bool(self.config['Logging']['save_logs'])
             self.log_dir = self.config['Logging']['log_dir']
             self.log_file = self.config['Logging']['log_file']
             self.login_attempts = self.config['Authentication']['login_attempts']
@@ -30,7 +52,15 @@ class SettingsParser(object):
             self.rate_limit = self.config['Security']['rate_limit']
             self.rate_limit_sleep = self.config['Security']['rate_limit_sleep'] / 1000
             self.max_message_size = self.config['Security']['max_message_size']
+            
+            if self.max_message_size > 0xFFFFFFFF or self.max_message_size < 0:
+                raise ConfigurationError("Invalid max message size")
+            
             self.max_image_size = self.config['Security']['max_image_size']
+        
+            if self.max_image_size > 0xFFFFFFFF or self.max_image_size < 0:
+                raise ConfigurationError("Invalid max image size")
+        
             self.slow_down = self.config['Security']['slow_down'] / 1000
             self.max_conns = self.config['Security']['max_conns']
             self.max_conn_errors = self.config['Security']['max_conn_errors']
