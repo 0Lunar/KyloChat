@@ -586,10 +586,10 @@ class ChatScreen(Screen):
             if self.compression:
                 compressor = Compressor()
                 compressed_image_data = compressor.compress(image_data) + compressor.flush()
-                self.conn.unsafe_send(MessageTypes.COMPRESSED_IMAGE.value.to_bytes(1, 'little'))
+                self.conn.send_char_bytes(MessageTypes.COMPRESSED_IMAGE.value.to_bytes(1, 'little'))
                 self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + compressed_image_data)
             else:
-                self.conn.unsafe_send(MessageTypes.IMAGE.value.to_bytes(1, 'little'))
+                self.conn.send_char_bytes(MessageTypes.IMAGE.value.to_bytes(1, 'little'))
                 self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + image_data)
                 
             code = self.queue.get(timeout=5)
@@ -653,14 +653,14 @@ class ChatScreen(Screen):
         """Send message to server"""
         try:
             if self.compression:
-                self.conn.unsafe_send(MessageTypes.COMPRESSED_MSG.value.to_bytes(1, 'little'))
+                self.conn.send_char_bytes(MessageTypes.COMPRESSED_MSG.value.to_bytes(1, 'little'))
                 payload = message.encode(encoding='utf-8', errors='strict')
                 compressor = Compressor()
                 payload = self.token.encode(encoding='utf-8', errors='strict') + compressor.compress(payload) + compressor.flush()
                 
                 self.conn.send_int_bytes(payload)
             else:
-                self.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+                self.conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
                 self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + message.encode(encoding='utf-8', errors='srict'))
             
             # Wait for status code
@@ -693,7 +693,7 @@ class ChatScreen(Screen):
         """Thread to receive messages from server"""
         while self.running:
             try:
-                msg_type = int.from_bytes(self.conn.unsafe_recv(1), 'little')
+                msg_type = int.from_bytes(self.conn.recv_char_bytes(1), 'little')
                                 
                 if msg_type == MessageTypes.MESSAGE.value:
                     user = self.conn.recv_short_bytes().decode('utf-8', 'replace')
@@ -703,7 +703,7 @@ class ChatScreen(Screen):
                         self.app.call_from_thread(self.add_message, user, data, is_own=False)
                 
                 elif msg_type == MessageTypes.STATUS_CODE.value:
-                    code = int.from_bytes(self.conn.unsafe_recv(2), 'little')
+                    code = int.from_bytes(self.conn.recv_char_bytes(2), 'little')
                     self.queue.put(code)
                     
                 elif msg_type == MessageTypes.IMAGE.value:
@@ -721,7 +721,7 @@ class ChatScreen(Screen):
     def action_quit_chat(self):
         """Quit chat and return to connection screen"""
         try:
-            self.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+            self.conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             self.conn.send_int_bytes(self.token.encode(encoding='utf-8', errors='strict') + b'/exit')
             self.conn.close()
         except:

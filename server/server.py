@@ -30,8 +30,8 @@ def send_status_code(conn: SocketHandler, code: int) -> None:
     assert code > 0 and code < 65536, "Invalid status code"
     
     try:
-        conn.unsafe_send(MessageTypes.STATUS_CODE.value.to_bytes(1, 'little'))
-        conn.unsafe_send(int.to_bytes(code, 2, 'little'))
+        conn.send_char_bytes(MessageTypes.STATUS_CODE.value.to_bytes(1, 'little'))
+        conn.send_char_bytes(int.to_bytes(code, 2, 'little'))
     except Exception as e:
         if settings.logging:
             logger.error(f"Failed to send status code {code}: {e}")
@@ -46,7 +46,7 @@ def broadcast_system_message(message: bytes, exclude_session: Optional[str] = No
             continue
         
         try:
-            client.conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+            client.conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             client.conn.send_short_bytes(b'SERVER')
             client.conn.send_int_bytes(message)
         except Exception as e:
@@ -63,7 +63,7 @@ def broadcast_user_message(msg_type: int, username: str, message: bytes, exclude
             continue
         
         try:
-            client.conn.unsafe_send(msg_type.to_bytes(1, 'little'))
+            client.conn.send_char_bytes(msg_type.to_bytes(1, 'little'))
             client.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
             client.conn.send_int_bytes(message)
         except Exception as e:
@@ -134,7 +134,7 @@ def handle_command(conn: SocketHandler, token: str, command: str, session_id: st
             logger.info(f"Executing command: {command}")
         output = hCommand.parseCommand(command)
         
-        conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+        conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
         conn.send_short_bytes(b'SERVER')
         conn.send_int_bytes(output)
     else:
@@ -142,7 +142,7 @@ def handle_command(conn: SocketHandler, token: str, command: str, session_id: st
         if settings.logging:
             logger.warning(f"Command denied for {username} ({conn.addr})")
         
-        conn.unsafe_send(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
+        conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
         conn.send_short_bytes(b'SERVER')
         conn.send_int_bytes(b'ACCESS DENIED: Admin privileges required')
 
@@ -176,7 +176,7 @@ def handle_connection(session_id: str) -> None:
         msg_type_out = MessageTypes.MESSAGE.value
         
         try:
-            msg_type = int.from_bytes(conn.unsafe_recv(1), 'little')
+            msg_type = int.from_bytes(conn.recv_char_bytes(1), 'little')
             payload = conn.recv_int_bytes()
             msg_cnt += 1
             

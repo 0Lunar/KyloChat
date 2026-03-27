@@ -112,7 +112,7 @@ class Login(object):
             return None
         
         user, token = token
-        self.conn.unsafe_send(MessageTypes.CACHED_LOGIN.value.to_bytes(1, 'little'))
+        self.conn.send_char_bytes(MessageTypes.CACHED_LOGIN.value.to_bytes(1, 'little'))
         self.conn.send_short_bytes(token.encode(encoding='utf-8', errors='strict'))
         
         if self.conn.recv_code():
@@ -133,7 +133,7 @@ class Login(object):
             Status : 'Token' if authenticated; Empity string otherwise
         """
         
-        self.conn.unsafe_send(MessageTypes.STD_LOGIN.value.to_bytes(1, 'little'))
+        self.conn.send_char_bytes(MessageTypes.STD_LOGIN.value.to_bytes(1, 'little'))
         self.conn.send_short_bytes(username.encode(encoding='utf-8', errors='strict'))
         fail = self.conn.recv_code()
         

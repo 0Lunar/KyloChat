@@ -299,7 +299,7 @@ class SocketHandler(socket.socket):
         return self._recvNbytes(8)
 
 
-    def unsafe_send(self, msg: bytes) -> int:
+    def send_char_bytes(self, msg: bytes) -> int:
         """
         Send a message without encryption
         
@@ -313,7 +313,7 @@ class SocketHandler(socket.socket):
         return super().send(msg)
     
     
-    def unsafe_recv(self, bufsize: int) -> bytes:
+    def recv_char_bytes(self, bufsize: int) -> bytes:
         """
         Receive a message without encryption
         

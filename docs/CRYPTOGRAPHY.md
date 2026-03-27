@@ -391,7 +391,7 @@ All encrypted payloads use length prefixes:
        msg_type = COMPRESSED_MSG
 
 3. Send message type (unencrypted):
-   conn.unsafe_send(bytes([MESSAGE]))  # 0x02
+   conn.send_char_bytes(bytes([MESSAGE]))  # 0x02
 
 4. Send encrypted payload (length-prefixed):
    conn.send_int_bytes(payload)
@@ -401,7 +401,7 @@ All encrypted payloads use length prefixes:
 **Server Receives**:
 ```
 1. Receive message type:
-   msg_type = int.from_bytes(conn.unsafe_recv(1))
+   msg_type = int.from_bytes(conn.recv_char_bytes(1))
    # 0x02 = MESSAGE
 
 2. Receive encrypted payload:

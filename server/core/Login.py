@@ -19,7 +19,7 @@ class Login(object):
     def get_login(self) -> (bool | str):
         # Get Credentials
         # Username
-        msg_type = int.from_bytes(self.conn.unsafe_recv(1), 'little')
+        msg_type = int.from_bytes(self.conn.recv_char_bytes(1), 'little')
 
         if msg_type == MessageTypes.STD_LOGIN.value:
             try:
