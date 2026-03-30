@@ -1,4 +1,7 @@
-from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from cryptography.hazmat.primitives.ciphers.algorithms import AES256
+from cryptography.hazmat.primitives.ciphers.modes import CTR
+from cryptography.hazmat.primitives.ciphers import Cipher
+from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.hashes import SHA256
 from cryptography.hazmat.primitives.hmac import HMAC
 from cryptography.hazmat.primitives import serialization
@@ -34,12 +37,9 @@ class CryptoHandler(object):
     
     @staticmethod
     def Generate_nonce() -> bytes:
-        return token_bytes(12)
-        
-    @staticmethod
-    def Generate_AAD() -> bytes:
         return token_bytes(16)
         
+
     @staticmethod
     def random_bytes(length: int) -> bytes:
         return token_bytes(length)
@@ -156,35 +156,42 @@ class CryptoHandler(object):
 
     def New_AES(self, key: bytes | None = None) -> None:
         self.aes_key = key or self.Generate_AES256_key()
-        self.aes = AESGCM(self.aes_key)
     
     
-    def AES_set_AAD(self, aad: bytes) -> None:
-        self.aes_aad = aad 
-    
-    
-    def AES_Encrypt(self, nonce: bytes, msg: bytes, aad: bytes | None) -> (bytes | None):
-        aad = aad or self.aes_aad
-        
+    def AES_Encrypt(self, nonce: bytes, msg: bytes) -> (bytes | None):
+        if not self.aes_key:
+            raise RuntimeError("Missing AES key")
+                
         try:
-            pad = PKCS7(block_size=self.AES_BLOCK_SIZE_BITS).padder()
-            padded_msg = pad.update(msg) + pad.finalize()
-            encrypted_msg = self.aes.encrypt(nonce, padded_msg, aad)
+            aes = Cipher(
+                algorithm=AES256(self.aes_key),
+                mode=CTR(nonce),
+                backend=default_backend()
+            )
+
+            encryptor = aes.encryptor()
+            encrypted_msg = encryptor.update(msg) + encryptor.finalize()
 
             return encrypted_msg
-        except:
+        except Exception as ex:
             return None
     
 
-    def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes, aad: bytes | None) -> (bytes | None):        
-        aad = aad or self.aes_aad
+    def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes) -> (bytes | None):        
+        if not self.aes_key:
+            raise RuntimeError("Missing AES key")
         
         try:
-            unpad = PKCS7(block_size=self.AES_BLOCK_SIZE_BITS).unpadder()
-            decrypted_msg = self.aes.decrypt(nonce, encrypted_msg, aad)
-            unpadded_msg = unpad.update(decrypted_msg) + unpad.finalize()
+            aes = Cipher(
+                algorithm=AES256(self.aes_key),
+                mode=CTR(nonce),
+                backend=default_backend()
+            )
+            
+            decryptor = aes.decryptor()
+            decrypted_msg = decryptor.update(encrypted_msg) + decryptor.finalize()
 
-            return unpadded_msg
+            return decrypted_msg
         except Exception as ex:
             return None
     
