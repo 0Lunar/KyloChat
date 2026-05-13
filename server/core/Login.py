@@ -7,6 +7,7 @@ from core.SettingsParser import SettingsParser
 
 
 class Login(object):
+    """ Class for managing server-client login """
     def __init__(self, connection: SocketHandler) -> None:
         self.crypto = CryptoHandler()
         self.conn = connection
@@ -17,9 +18,13 @@ class Login(object):
     
 
     def get_login(self) -> (bool | str):
-        # Get Credentials
-        # Username
-        msg_type = int.from_bytes(self.conn.recv_char_bytes(1), 'little')
+        """
+        Manages login parameters and tokens
+        
+        Returns:
+            out: False on login failed, the token on success
+        """
+        msg_type = int.from_bytes(self.conn.recv_char_bytes(), 'little')
 
         if msg_type == MessageTypes.STD_LOGIN.value:
             try:

@@ -2,6 +2,7 @@ from core.dbHandler import DBHandler
 from core.ConnectionsHandler import ConnHandler
 
 class CommandHandler(object):
+    """ Command parsing class """
     def __init__(self, dbHandler: DBHandler, connHandler: ConnHandler) -> None:
         self.commands = {
             "help":     (0, self.helpCommand),
@@ -27,6 +28,7 @@ class CommandHandler(object):
         
         
     def helpCommand(self) -> bytes:
+        """ Returns the help command """
         return \
 b'''
 /help           Display this message
@@ -46,6 +48,15 @@ b'''
     
 
     def isCommand(self, msg: str) -> bool:
+        """
+        Checks whether a string is a valid command
+        
+        Args:
+            msg: the message to check
+        
+        Returns:
+            check: `True` if it's a command, `False` otherwise
+        """
         if not msg:
             return False
         
@@ -56,6 +67,15 @@ b'''
     
     
     def parseCommand(self, command: str) -> bytes:
+        """
+        Parse a command and executes it
+        
+        Args:
+            command: the command to execute
+        
+        Returns:
+            data: the output of the command
+        """
         if not self.isCommand(command):
             return b''
 
@@ -77,13 +97,31 @@ b'''
     
     
     def user_id(self, username: str) -> bytes:
+        """
+        Convert username to userID
+        
+        Args:
+            username: the username
+        
+        Returns:
+            userid: the database userID
+        """
         try:
             return f'UserID: {self._db.userID(username)}'.encode(encoding='utf-8', errors='strict')
         except Exception as ex:
             return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
-    def banUser(self, user_id: int) -> bytes:        
+    def banUser(self, user_id: int) -> bytes:
+        """
+        Ban a user
+        
+        Args:
+            user_id: the database userID
+        
+        Returns:
+            status: command output
+        """       
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
@@ -99,7 +137,16 @@ b'''
             return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
-    def unbanUser(self, user_id: int) -> bytes:        
+    def unbanUser(self, user_id: int) -> bytes:
+        """
+        Unban a user
+        
+        Args:
+            user_id: the database userID
+        
+        Returns:
+            status: command output
+        """     
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
@@ -115,7 +162,16 @@ b'''
             return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
-    def isAdmin(self, user_id: int) -> bytes:        
+    def isAdmin(self, user_id: int) -> bytes:
+        """
+        Check if a user is admin
+        
+        Args:
+            user_id: the database userID
+        
+        Returns:
+            out: `True` if the user is admin, `False` otherwise
+        """       
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
@@ -128,7 +184,16 @@ b'''
             return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
     
-    def isBanned(self, user_id: int) -> (bool | bytes):        
+    def isBanned(self, user_id: int) -> (bool | bytes):
+        """
+        Check if a user is banned
+        
+        Args:
+            user_id: the database userID
+        
+        Returns:
+            banStatus: `True` if banned, `False` otherwise
+        """     
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
@@ -140,8 +205,18 @@ b'''
         except Exception as ex:
             return f'Database error: {ex}'.encode(encoding='utf-8', errors='strict')
     
-    
-    def changePasswd(self, user_id: int, passwd: str) -> bytes:        
+
+    def changePasswd(self, user_id: int, passwd: str) -> bytes:
+        """
+        Change a user's password
+        
+        Args:
+            user_id: the database userID
+            passwd: the new user password
+        
+        Returns:
+            status: command output
+        """
         if type(user_id) is not int:
             try:
                 user_id = int(user_id)
@@ -158,10 +233,28 @@ b'''
     
     
     def lsip(self) -> tuple:
+        """
+        Show all connected IPs
+        
+        Returns:
+            hosts: all the connected hosts
+        """
         return tuple(self._cn.get_all_hosts())
     
     
-    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> (bool | bytes):        
+    def makeUser(self, username: str, password: str, email: str | None = None, admin: bool = False) -> bytes:
+        """
+        Create a new user
+        
+        Args:
+            username: the username
+            password: the password for authentication
+            email: the email for account recovery (optional)
+            admin: set `True` if the account have admin permissions, `False` otherwise (default: `False`)
+        
+        Returns:
+            status: command output
+        """
         if not email or email.lower() == 'none':
             email = None
         
@@ -186,6 +279,15 @@ b'''
     
     
     def revokeToken(self, token: str) -> bytes:
+        """
+        Revoke a token
+        
+        Args:
+            token: the token to revoke
+        
+        Returns:
+            status: command output
+        """
         try:
             if not self._db.existToken(token):
                 return b'Token not found'
@@ -199,6 +301,15 @@ b'''
     
     
     def removeToken(self, token: str) -> bytes:
+        """
+        Removes a token from the database
+        
+        Args:
+            token: the token to remove
+        
+        Returns:
+            status: command output
+        """
         try:
             if not self._db.existToken(token):
                 return b'Token not found'
@@ -212,6 +323,15 @@ b'''
     
     
     def showTokens(self, limit: int) -> bytes:
+        """
+        Show all tokens in the database
+        
+        Args:
+            limit: max number of tokens to show
+            
+        Returns:
+            status: command output
+        """
         if type(limit) is not int:
             try:
                 limit = int(limit)
@@ -239,6 +359,12 @@ b'''
     
     
     def list_users(self) -> bytes:
+        """
+        Show all users in the database
+        
+        Returns:
+            users: all the users registered in the database
+        """
         try:
             users = self._db.showUsers()
             

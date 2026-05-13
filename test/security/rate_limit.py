@@ -72,8 +72,8 @@ if __name__ == '__main__':
         for idx in range(parsed.rate_limit + 1):
             conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + f'{idx + 1} Flooding...'.encode(encoding='utf-8', errors='strict'))
-            msg_type = int.from_bytes(conn.recv_char_bytes(1), 'little')
-            code = int.from_bytes(conn.recv_char_bytes(2), 'little')
+            msg_type = int.from_bytes(conn.recv_char_bytes(), 'little')
+            code = int.from_bytes(conn.recv_char_bytes(), 'little')
             
             if code != 200:
                 print(f"{idx} Message rejected")
@@ -85,8 +85,8 @@ if __name__ == '__main__':
             start_tm = time.time()
             conn.send_char_bytes(MessageTypes.MESSAGE.value.to_bytes(1, 'little'))
             conn.send_int_bytes(token.encode(encoding='utf-8', errors='strict') + b'Flooding...')
-            msg_type = int.from_bytes(conn.recv_char_bytes(1), 'little')
-            code = int.from_bytes(conn.recv_char_bytes(2), 'little')
+            msg_type = int.from_bytes(conn.recv_char_bytes(), 'little')
+            code = int.from_bytes(conn.recv_char_bytes(), 'little')
             end_tm = time.time()
             
             print(f'Delay: {end_tm - start_tm:.02f}')

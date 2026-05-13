@@ -6,6 +6,7 @@ import re
 
 
 class Login(object):
+    """ Class for managing client-server login """
     def __init__(self, connection: SocketHandler) -> None:
         self.crypto = CryptoHandler()
         self.conn = connection
@@ -14,12 +15,23 @@ class Login(object):
     
     @staticmethod
     def is_uuid4(data: str) -> bool:
+        """
+        Check if the token is UUID4
+        
+        Args:
+            data: the data to check
+        """
         return bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', data))
     
     
     @staticmethod
     def validate_host(host: str) -> bool:
-        """Validate IP address format"""
+        """
+        Validate IP address format
+        
+        Args:
+            host: the address to validate
+        """
         
         if host.count('.') == 3 and not any([not i.isdigit() for i in host.split('.')]):
             return bool(re.match(r'^((25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])\.){3}(25[0-5]|2[0-4][0-9]|1[0-9][0-9]|[1-9][0-9]|[0-9])$', host))
@@ -31,6 +43,12 @@ class Login(object):
     
     
     def checkCache(self, tokenFile: str = ".cache/token") -> bool:
+        """
+        Check that the cache exists and is valid
+        
+        Args:
+            tokenFile: the file where tokens are saved (default: `.cache/token`)
+        """
         if not os.path.isfile(tokenFile):
             return False
         
@@ -43,13 +61,21 @@ class Login(object):
 
                 if not self.validate_host(host):
                     return False
-
-                return True
         
-        return False
+        return True
     
     
     def getToken(self, host: str, tokenFile: str = ".cache/token") -> (tuple[str, str] | None):
+        """
+        Gets a token from the cache (if it exists)
+        
+        Args:
+            host: the host associated with the token
+            tokenFile: the file where tokens are saved (default: `.cache/token`)
+        
+        Returns:
+        
+        """
         if not self.checkCache(tokenFile):
             return None
         
@@ -65,6 +91,12 @@ class Login(object):
     
     
     def removeToken(self, tokenFile: str = ".cache/token") -> None:
+        """
+        Removes the first token it finds with the currently connected host
+        
+        Args:
+            tokenFile: the file where tokens are saved (default: `.cache/token`)
+        """
         if not os.path.isfile(tokenFile):
             return
         
@@ -89,6 +121,17 @@ class Login(object):
     
     
     def saveToken(self, username: str, token: str, tokenFile: str = ".cache/token") -> None:
+        """ 
+        Cache the currently used token
+        
+        Args:
+            username: the username associated with the token
+            token: the token to save
+            tokenFile: the file where tokens are saved (default: `.cache/token`)
+        
+        Returns:
+        
+        """
         if not bool(re.match(r'^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$', token)):
             return
         
@@ -108,6 +151,12 @@ class Login(object):
             
             
     def loging_cache(self) -> (tuple | None):
+        """
+        Attempt to log in with the cached token
+        
+        Returns:
+            out: `(user, token)` on success, `None` on failure
+        """
         if not (token := self.getToken(self.conn.addr[0])):
             return None
         
@@ -123,14 +172,14 @@ class Login(object):
     
     def login(self, username: str, password: str) -> (str | None):
         """
-        Login in the server
+        Login to the server with your credentials
         
         Args:
-            username : The username
+            username: The username
             password: The password
         
         Returns:
-            Status : 'Token' if authenticated; Empity string otherwise
+            Status: 'Token' if authenticated; Empity string otherwise
         """
         
         self.conn.send_char_bytes(MessageTypes.STD_LOGIN.value.to_bytes(1, 'little'))

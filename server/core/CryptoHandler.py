@@ -28,31 +28,33 @@ class CryptoHandler(object):
 
     @staticmethod
     def Generate_AES256_key() -> bytes:
+        """ Generate a 256-bit AES key """
         return token_bytes(32)
 
     @staticmethod
     def Generate_HMAC_key() -> bytes:
+        """ Generate a 256-bit HMAC key """
         return token_bytes(32)
     
     @staticmethod
     def Generate_nonce() -> bytes:
+        """ Generates a 128-bit nonce """
         return token_bytes(16)
-        
+
     @staticmethod
     def random_bytes(length: int) -> bytes:
+        """ Wrapper for `secrets.token_bytes`, allows for cryptographically secure random bytes """
         return token_bytes(length)
-    
-    @staticmethod
-    def Generate_Bcrypt_Salt() -> bytes:
-        return bcrypt.gensalt()
 
 
     def New_ECC(self) -> None:
+        """ Generate a new x25519 key for key exchange """
         self.priv_key = X25519PrivateKey.generate()
         self.pub_key = self.priv_key.public_key()
         
     
     def ECC_export_pub_key(self) -> (bytes | None):
+        """ Export the local public x25519 key """
         if self.pub_key:
             return self.pub_key.public_bytes(
                 encoding=serialization.Encoding.Raw,
@@ -63,10 +65,12 @@ class CryptoHandler(object):
     
     
     def ECC_import_pub_bytes(self, pub_key: bytes) -> None:
+        """ Import a remote public x25519 key """
         self.remote_pub = X25519PublicKey.from_public_bytes(pub_key)
         
         
     def ECC_calc_key(self) -> (bytes | None):
+        """ Calculate the common x25519 key """
         if self.priv_key and self.remote_pub:
             shared_key = self.priv_key.exchange(self.remote_pub)
             
@@ -76,6 +80,7 @@ class CryptoHandler(object):
                 salt=None,
                 info=b'Key Derivation for X25519'
             ).derive(shared_key)
+            
         return None
     
     
@@ -129,10 +134,12 @@ class CryptoHandler(object):
 
 
     def New_AES(self, key: bytes | None = None) -> None:
+        """ Create a new AES session """
         self.aes_key = key or self.Generate_AES256_key()
     
     
     def AES_Encrypt(self, nonce: bytes, msg: bytes) -> (bytes | None):
+        """ Encrypt data with AES-CTR """
         if not self.aes_key:
             raise RuntimeError("Missing AES key")
                 
@@ -147,11 +154,12 @@ class CryptoHandler(object):
             encrypted_msg = encryptor.update(msg) + encryptor.finalize()
 
             return encrypted_msg
-        except:
+        except Exception as ex:
             return None
     
 
-    def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes) -> (bytes | None):        
+    def AES_Decrypt(self, nonce: bytes, encrypted_msg: bytes) -> (bytes | None):
+        """ Decrypt data with AES-CTR """
         if not self.aes_key:
             raise RuntimeError("Missing AES key")
         
@@ -168,13 +176,15 @@ class CryptoHandler(object):
             return decrypted_msg
         except Exception as ex:
             return None
-
+    
 
     def New_HMAC(self, key: bytes | None = None) -> None:
+        """ Create a new HMAC session """
         self.hmac_key = key or self.Generate_HMAC_key()
     
 
     def Sign_HMAC(self, msg: bytes) -> bytes:
+        """ Sign data with HMAC """
         if not self.hmac_key:
             raise RuntimeError("HMAC not initialized")
         
@@ -189,6 +199,7 @@ class CryptoHandler(object):
 
 
     def check_HMAC(self, msg: bytes, signature: bytes) -> bool:
+        """ Verify signed data with HMAC """
         if not self.hmac_key:
             raise RuntimeError("HMAC not initialized")
 

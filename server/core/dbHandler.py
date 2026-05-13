@@ -26,7 +26,7 @@ class DBHandler(object):
         Check if the connection with the database is open
         
         Returns:
-            bool : `True` if connected, otherwise `False`
+            bool: `True` if connected, otherwise `False`
         """
         return self.db.is_connected()
     
@@ -50,10 +50,10 @@ class DBHandler(object):
         Check if the user exists
         
         Args:
-            username : `string` for username; `int` for UserID
+            username: `string` for username; `int` for UserID
         
         Returns:
-            bool : `True` if the username exists, otherwise `False`
+            bool: `True` if the username exists, otherwise `False`
         """
         self.checkDB()    
         cursor = self.db.cursor()
@@ -84,10 +84,10 @@ class DBHandler(object):
         Return the userid of a user
         
         Args:
-            username : `string` representing the username
+            username: `string` representing the username
         
         Returns:
-            user_id : An `int` representing the user's ID in the database
+            user_id: An `int` representing the user's ID in the database
         """
         self.checkDB()
         cursor = self.db.cursor()
@@ -111,12 +111,12 @@ class DBHandler(object):
         Check the credentials
         
         Args:
-            username : `string` for username
-            password : `string` for password
-            silent : If set to `True` does not raise exceptions
+            username: `string` for username
+            password: `string` for password
+            silent: If set to `True` does not raise exceptions
         
         Returns:
-            bool : `True` if username and password are correct, otherwise `False`
+            bool: `True` if username and password are correct, otherwise `False`
         """
         self.checkDB()
         
@@ -153,11 +153,11 @@ class DBHandler(object):
         Check if a user is banned
         
         Args:
-            username : `string` for username; `int` for UserID
-            silent : If set to `True` does not raise exceptions
+            username: `string` for username; `int` for UserID
+            silent: If set to `True` does not raise exceptions
         
         Returns:
-            bool : `True` if user is banned, otherwise `False`
+            bool: `True` if user is banned, otherwise `False`
         """
         self.checkDB()
         
@@ -223,10 +223,10 @@ class DBHandler(object):
         Check if the token exists in the database
         
         Params:
-            token : `string` for the token
+            token: `string` for the token
         
         Returns:
-            bool : `True` if the token exists, otherwise `False`
+            bool: `True` if the token exists, otherwise `False`
         """
         self.checkDB()
         
@@ -250,10 +250,10 @@ class DBHandler(object):
         Check if a token is expired
         
         Args:
-            token : `string` for token
+            token: `string` for token
         
         Returns:
-            bool : `True` if the token is expired, otherwise `False`
+            bool: `True` if the token is expired, otherwise `False`
         """
         self.checkDB()
         cursor = self.db.cursor()
@@ -291,10 +291,10 @@ class DBHandler(object):
         Check if a user is banned with the token
         
         Args:
-            token : `string` for token
+            token: `string` for token
         
         Returns:
-            bool : `True` if the user is banned, otherwise `False`
+            bool: `True` if the user is banned, otherwise `False`
         """
         self.checkDB()
         cursor = self.db.cursor()
@@ -318,7 +318,7 @@ class DBHandler(object):
         Check if a token belongs to an admin
         
         Params:
-            tokens : `string` for token
+            tokens: `string` for token
             
         Returns:
             `True` if the token is admin, otherwise `False`
@@ -368,10 +368,10 @@ class DBHandler(object):
         Create a token
         
         Args:
-            user : An `int` representing the user's ID in the database
+            user: An `int` representing the user's ID in the database
         
         Returns:
-            token : A `string` representing the token
+            token: A `string` representing the token
         """
         self.checkDB()
         
@@ -398,10 +398,10 @@ class DBHandler(object):
         Ban a user
         
         Args:
-            user_id : An `int` representing the user's ID in the database
+            user_id: An `int` representing the user's ID in the database
         
         Returns:
-            bool : `True` if the user is banned, otherwise `False`
+            bool: `True` if the user is banned, otherwise `False`
         """
         
         self.checkDB()
@@ -432,10 +432,10 @@ class DBHandler(object):
         Unban a user
         
         Args:
-            user_id : An `int` representing the user's ID in the database
+            user_id: An `int` representing the user's ID in the database
         
         Returns:
-            bool : `True` if the user is unbanned, otherwise `False`
+            bool: `True` if the user is unbanned, otherwise `False`
         """
         self.checkDB()
         
@@ -488,13 +488,13 @@ class DBHandler(object):
         Create a user on the database
         
         Args:
-            username : username for login
-            password : user password
-            email : email for the account (optional for non admin)
-            admin : `True` if the user is admin, otherwise `False`
+            username: username for login
+            password: user password
+            email: email for the account (optional for non admin)
+            admin: `True` if the user is admin, otherwise `False`
             
         Returns:
-            out : `True` on success, `False` on failure
+            out: `True` on success, `False` on failure
         """
         self.checkDB()
         
@@ -548,10 +548,10 @@ class DBHandler(object):
         Return the first N tokens in the database
         
         Args:
-            limit : The maximum number of tokens to return
+            limit: The maximum number of tokens to return
         
         Returns:
-            out : list[Tokens] on success, None on failure
+            out: list[Tokens] on success, None on failure
         """
         self.checkDB()
         
@@ -575,10 +575,10 @@ class DBHandler(object):
         Remove a token from the database
         
         Args:
-            token : The token to remove
+            token: The token to remove
         
         Returns:
-            out : `True` on success, `False` on failure
+            out: `True` on success, `False` on failure
         """
         self.checkDB()
         
@@ -605,10 +605,10 @@ class DBHandler(object):
         Revoke a token from the database
         
         Args:
-            token : The token to remove
+            token: The token to remove
         
         Returns:
-            out : `True` on success, `False` on failure
+            out: `True` on success, `False` on failure
         """
         self.checkDB()
         

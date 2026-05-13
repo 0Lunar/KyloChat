@@ -2,6 +2,7 @@ from enum import Enum
 
 
 class MessageTypes(Enum):
+    """ Enum for managing custom MimeTypes """
     SUCCESS = 0
     FAILURE = 1
     MESSAGE = 2

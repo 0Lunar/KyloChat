@@ -1,9 +1,9 @@
 from core.SettingsParser import SettingsParser
 import time
-import re
 
 
 class NetworkBan(object):
+    """ IPS against bruteforce attacks """
     def __init__(self) -> None:
         self.settings = SettingsParser()
         
@@ -12,6 +12,13 @@ class NetworkBan(object):
     
     
     def addLogin(self, host: str, count: int) -> None:
+        """
+        Adds a login attempt
+        
+        Args:
+            host: the host address
+            count: the number of attempts made
+        """
         if not self.logins.get(host, None):
             self.logins[host] = count
         
@@ -20,19 +27,41 @@ class NetworkBan(object):
             
     
     def countLogin(self, host: str) -> int:
+        """
+        Returns the number of login attempts
+        
+        Args:
+            host: the host address
+            
+        Returns:
+            attepts: The number of host attempts
+        """
         return self.logins.get(host, 0)
     
     
     def removeLogin(self, host: str) -> None:
+        """
+        Removes a host from the login attempts list
+        
+        Args:
+            host: the host address
+        """
         if host in self.logins:
             self.logins.pop(host)
             
             
     def cleanLogin(self) -> None:
+        """ Removes all login attempts made """
         self.logins.clear()
     
     
     def newBan(self, host: str) -> None:
+        """
+        Ban a host from the network
+        
+        Args:
+            host: the host address
+        """
         if not self.settings.ban_on_fail:
             raise RuntimeError("Ban disabled")
         
@@ -40,6 +69,12 @@ class NetworkBan(object):
     
     
     def isBanned(self, host: str) -> bool:
+        """
+        Check if a host is banned from the network
+        
+        Args:
+            host: the host address
+        """
         if not self.settings.ban_on_fail:
             return False
         

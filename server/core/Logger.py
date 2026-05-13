@@ -6,6 +6,7 @@ from colorama import init, Fore, Style
 from core.SettingsParser import SettingsParser
 
 class Logger:
+    """ Class for server-side logging management """
     def __init__(self, log_dir="logs", log_file="chatserver.log", max_file_size: int = 10*1024*1024, backup_count: int = 5, 
                  console_output: int = True, use_colors: int = True):
         init()
@@ -22,6 +23,7 @@ class Logger:
         self.setup_logger()
         
     def setup_logger(self):
+        """ Initialize the logger """
         self.logger = logging.getLogger('ChatServer')
         self.logger.setLevel(logging.DEBUG)
         self.logger.handlers = []
@@ -61,6 +63,7 @@ class Logger:
             self.logger.addHandler(console_handler)
     
     def debug(self, message, use_colors=None):
+        """ Create a `debug` level log """
         use_colors = self.use_colors if use_colors is None else use_colors
         
         if use_colors:
@@ -70,7 +73,8 @@ class Logger:
         else:
             self.logger.debug(message)
     
-    def info(self, message, use_colors=None):        
+    def info(self, message, use_colors=None): 
+        """ Create a `info` level log """       
         use_colors = self.use_colors if use_colors is None else use_colors
         
         if use_colors:
@@ -81,6 +85,7 @@ class Logger:
             self.logger.info(message)
     
     def warning(self, message, use_colors=None):
+        """ Create a `warning` level log """
         use_colors = self.use_colors if use_colors is None else use_colors
         
         if use_colors:
@@ -90,7 +95,8 @@ class Logger:
         else:
             self.logger.warning(message)
     
-    def error(self, message, use_colors=None):        
+    def error(self, message, use_colors=None):
+        """ Create a `error` level log """
         use_colors = self.use_colors if use_colors is None else use_colors
         
         if use_colors:
@@ -101,6 +107,7 @@ class Logger:
             self.logger.error(message)
     
     def critical(self, message, use_colors=None):
+        """ Create a `critical` level log """
         use_colors = self.use_colors if use_colors is None else use_colors
         
         if use_colors:
@@ -111,12 +118,14 @@ class Logger:
             self.logger.critical(message)
     
     def close(self):
+        """ Close the logger stream """
         for handler in self.logger.handlers[:]:
             handler.close()
             self.logger.removeHandler(handler)
 
 
-class ColoredFormatter(logging.Formatter):    
+class ColoredFormatter(logging.Formatter):
+    """ Class to manage logger colors """
     def __init__(self, fmt=None, datefmt=None):
         super().__init__(fmt, datefmt)
         

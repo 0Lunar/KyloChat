@@ -5,6 +5,7 @@ import socket
 
 
 class SocketHandler(socket.socket):
+    """ Class to manage sockets and connections """
     def __init__(self, family: socket.AddressFamily | int = -1, type: socket.SocketKind | int = -1, proto: int = -1, fileno: int | None = None) -> None:
         super().__init__(family, type, proto, fileno)
         self.crypto = CryptoHandler()
@@ -18,6 +19,12 @@ class SocketHandler(socket.socket):
     
 
     def connect(self, address) -> None:
+        """
+        Create a new connection 
+        
+        Args:
+            address: a tuple containing the address and the port (eg: `("127.0.0.1", 53900)`)
+        """
         if self.connected:
             raise RuntimeError("Already connected")
 
@@ -28,12 +35,12 @@ class SocketHandler(socket.socket):
         
     
     def handshake(self) -> None:
-        """
-        Start the handshake with the client
+        """ Handshake for keys and certificate exchange
         
-        Public Key: RSA-2048
-        Cipher:     AES-256
-        Sign:       HMAC-SHA256
+        - x25519
+        - Cert secp256-r1
+        - AES-256
+        - HMAC-SHA256
         """
         
         conn = super()
@@ -106,10 +113,10 @@ class SocketHandler(socket.socket):
         Receive N bytes
         
         Args:
-            size : number of bytes to receive
+            size: number of bytes to receive
         
         Returns:
-            out : The payload received
+            out: The payload received
         """
         if not self.connected:
             raise RuntimeError("Not connected")
@@ -145,7 +152,7 @@ class SocketHandler(socket.socket):
         Send the message encrypted
         
         Args:
-            msg : the message to send
+            msg: the message to send
         """
         if not self.connected:
             raise RuntimeError("Not connected")
@@ -299,34 +306,6 @@ class SocketHandler(socket.socket):
         return self._recvNbytes(8)
 
 
-    def send_char_bytes(self, msg: bytes) -> int:
-        """
-        Send a message without encryption
-        
-        Args:
-            msg : payload to send
-            
-        Returns:
-            out : the number of bytes sent
-        """
-        
-        return super().send(msg)
-    
-    
-    def recv_char_bytes(self, bufsize: int) -> bytes:
-        """
-        Receive a message without encryption
-        
-        Args:
-            bufsize : Number of byte to receive
-            
-        Returns:
-            buffer : the buffere received
-        """
-        
-        return super().recv(bufsize)
-    
-    
     def success_code(self) -> None:
         """
         Send the success code (not encrypted) b'\x00'
@@ -335,8 +314,7 @@ class SocketHandler(socket.socket):
         if not self.connected:
             raise RuntimeError("Not connected")
         
-        if super().send(b'\x00') <= 0:
-            raise RuntimeError("Connection error")
+        self.send_char_bytes(b'\x00')
     
 
     def fail_code(self) -> None:
@@ -347,8 +325,7 @@ class SocketHandler(socket.socket):
         if not self.connected:
             raise RuntimeError("Not connected")
         
-        if super().send(b'\x01') <= 0:
-            raise RuntimeError("Connection error")
+        self.send_char_bytes(b'\x01')
         
         
     def recv_code(self) -> bool:
@@ -356,13 +333,13 @@ class SocketHandler(socket.socket):
         Receive the status code
         
         Returns:
-            Status_Code : `True` on **Failure**; `False` on **Success**
+            status_code: `True` on **Failure**; `False` on **Success**
         """
         
         if not self.connected:
             raise RuntimeError("Not connected")
         
-        code = super().recv(1)
+        code = self.recv_char_bytes()
         code = int.from_bytes(code)
         
         if code not in {0,1}:

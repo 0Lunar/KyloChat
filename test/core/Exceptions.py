@@ -1,5 +1,5 @@
 class EncodingError(Exception):
-    """BAse exception for encoding errors"""
+    """Base exception for encoding errors"""
     def __init__(self, *args: object) -> None:
         super().__init__(*args)
         

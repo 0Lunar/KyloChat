@@ -18,6 +18,7 @@ def validate_ip(ip: str) -> bool:
 
 
 class SettingsParser(object):
+    """ Class to parse server settings """
     def __init__(self, config_file: str = 'config.toml') -> None:
         assert config_file.endswith('.toml'), "Invalid file extension; use .toml"
         assert os.path.isfile(config_file), "Configuration file not found"

@@ -176,7 +176,7 @@ def handle_connection(session_id: str) -> None:
         msg_type_out = MessageTypes.MESSAGE.value
         
         try:
-            msg_type = int.from_bytes(conn.recv_char_bytes(1), 'little')
+            msg_type = int.from_bytes(conn.recv_char_bytes(), 'little')
             payload = conn.recv_int_bytes()
             msg_cnt += 1
             

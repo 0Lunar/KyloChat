@@ -693,7 +693,7 @@ class ChatScreen(Screen):
         """Thread to receive messages from server"""
         while self.running:
             try:
-                msg_type = int.from_bytes(self.conn.recv_char_bytes(1), 'little')
+                msg_type = int.from_bytes(self.conn.recv_char_bytes(), 'little')
                                 
                 if msg_type == MessageTypes.MESSAGE.value:
                     user = self.conn.recv_short_bytes().decode('utf-8', 'replace')
@@ -703,7 +703,7 @@ class ChatScreen(Screen):
                         self.app.call_from_thread(self.add_message, user, data, is_own=False)
                 
                 elif msg_type == MessageTypes.STATUS_CODE.value:
-                    code = int.from_bytes(self.conn.recv_char_bytes(2), 'little')
+                    code = int.from_bytes(self.conn.recv_char_bytes(), 'little')
                     self.queue.put(code)
                     
                 elif msg_type == MessageTypes.IMAGE.value:
